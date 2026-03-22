@@ -4,7 +4,7 @@ import logo from "../../public/logo.png";
 
 export default function Footer() {
   return (
-    <footer className="w-full mt-32 border-t border-white/10">
+    <footer className="w-full border-t border-white/10">
 
       <div className="px-30 py-16 flex justify-between gap-20">
 

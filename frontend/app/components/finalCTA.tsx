@@ -1,6 +1,6 @@
 export default function FinalCTA() {
   return (
-    <section className="w-full flex justify-center">
+    <section className="w-full flex justify-center pb-32">
 
       <div className="text-center max-w-2xl flex flex-col items-center gap-6">
 
@@ -25,9 +25,7 @@ export default function FinalCTA() {
         ">
           View Menu →
         </button>
-
       </div>
-
     </section>
   );
 }
