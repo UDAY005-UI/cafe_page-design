@@ -5,10 +5,18 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { OrderGateway } from './orders.gateway';
 
 @Injectable()
 export class OrderService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private gateway: OrderGateway,
+  ) {}
+
+  private nowIST(): Date {
+    return new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  }
 
   async getMenuItems() {
     return this.prisma.menuItem.findMany({
@@ -59,7 +67,6 @@ export class OrderService {
         tableId,
         sessionId,
         totalPrice,
-        // OFFLINE → default PLACED; ONLINE → stays PLACED until payment confirms
         status: 'PLACED',
         items: {
           create: items.map((item) => ({
@@ -68,7 +75,6 @@ export class OrderService {
             priceAtTime: priceMap.get(item.menuItemId) ?? 0,
           })),
         },
-        // For OFFLINE, create a cash payment record immediately
         ...(paymentMethod === 'OFFLINE' && {
           payment: {
             create: {
@@ -80,18 +86,20 @@ export class OrderService {
         }),
       },
       include: {
-        items: {
-          include: { menuItem: true },
-        },
+        items: { include: { menuItem: true } },
         payment: true,
+        table: true,
       },
     });
 
     // ── 5. Touch session to keep it alive ────────────────────────────────────
     await this.prisma.session.update({
       where: { id: sessionId },
-      data: { lastActivityAt: new Date() },
+      data: { lastActivityAt: this.nowIST() }, // ← IST
     });
+
+    // ── 6. Emit real-time event ──────────────────────────────────────────────
+    this.gateway.emitNewOrder(order);
 
     return order;
   }
@@ -126,7 +134,7 @@ export class OrderService {
       throw new NotFoundException('ORDER_NOT_FOUND');
     }
 
-    // ── 3. Optional: enforce transition rules (recommended) ──────────────
+    // ── 3. Enforce transition rules ──────────────────────────────────────
     const invalidTransition =
       order.status === 'CANCELLED' || order.status === 'SERVED';
 
@@ -134,55 +142,53 @@ export class OrderService {
       throw new BadRequestException('INVALID_STATUS_TRANSITION');
     }
 
-    // ── 4. Update status ─────────────────────────────────────────────────
-    return this.prisma.order.update({
+    // ── 4. Update status with full relations for emit ────────────────────
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status },
+      include: {
+        items: { include: { menuItem: true } },
+        payment: true,
+        table: true,
+      },
     });
+
+    // ── 5. Emit real-time event ──────────────────────────────────────────
+    this.gateway.emitOrderUpdated(updated);
+
+    return updated;
   }
+
   async getAllOrders() {
     return this.prisma.order.findMany({
       where: {
         status: {
-          in: ['PLACED', 'PREPARING'], // ✅ filter added
+          in: ['PLACED', 'PREPARING'],
         },
       },
       include: {
-        items: {
-          include: {
-            menuItem: true,
-          },
-        },
+        items: { include: { menuItem: true } },
         payment: true,
         table: true,
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
   }
+
   async getServedOrdersWithin(minutes: number) {
     const fromTime = new Date(Date.now() - minutes * 60 * 1000);
 
     return this.prisma.order.findMany({
       where: {
         status: 'SERVED',
-        updatedAt: {
-          gte: fromTime, // ✅ served within timeframe
-        },
+        updatedAt: { gte: fromTime },
       },
       include: {
-        items: {
-          include: {
-            menuItem: true,
-          },
-        },
+        items: { include: { menuItem: true } },
         payment: true,
         table: true,
       },
-      orderBy: {
-        updatedAt: 'desc',
-      },
+      orderBy: { updatedAt: 'desc' },
     });
   }
 }
