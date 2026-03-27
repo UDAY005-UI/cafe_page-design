@@ -92,4 +92,24 @@ export class QrService {
 
     return result;
   }
+
+  async deleteQr(tableNumber: number): Promise<void> {
+    const table = await this.prisma.table.findUnique({
+      where: { tableNumber },
+    });
+
+    if (!table) {
+      throw new Error('Table not found');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.qR.delete({
+        where: { tableId: table.id },
+      });
+
+      await tx.table.delete({
+        where: { id: table.id },
+      });
+    });
+  }
 }

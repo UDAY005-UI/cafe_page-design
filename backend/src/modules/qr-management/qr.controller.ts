@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Res,
+  Delete,
+} from '@nestjs/common';
 import { QrService } from './qr.service';
 import type { Response } from 'express';
 
@@ -34,5 +42,14 @@ export class QrController {
   @Get()
   async getAllQr() {
     return this.qrService.getAllQrImages();
+  }
+
+  @Delete('t/:tableNumber')
+  async deleteQr(
+    @Param('tableNumber') tableNumber: string,
+    @Res() res: Response,
+  ) {
+    await this.qrService.deleteQr(Number(tableNumber));
+    res.status(200).json({ message: 'QR deleted successfully' });
   }
 }
