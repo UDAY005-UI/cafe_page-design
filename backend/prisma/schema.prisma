@@ -34,6 +34,7 @@ model Session {
 
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+  lastActivityAt DateTime @default(now()) 
 
   orders    Order[]
 }
@@ -85,7 +86,7 @@ model OrderItem {
   menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
 
   quantity    Int
-  priceAtTime Float   // snapshot (critical)
+  priceAtTime Float  
 
   createdAt   DateTime @default(now())
 }
@@ -101,8 +102,8 @@ model Payment {
 
   amount    Float
 
-  provider  String?   // e.g. razorpay
-  reference String?   // txn id from provider
+  provider  String? 
+  reference String? 
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
