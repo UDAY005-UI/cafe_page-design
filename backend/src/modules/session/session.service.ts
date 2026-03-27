@@ -7,12 +7,16 @@ export class SessionService {
 
   private THIRTY_MIN = 30 * 60 * 1000;
 
-  // Helper: current time as IST-offset Date
+  // Returns current time in IST as a Date object
   private nowIST(): Date {
     const now = new Date();
-    // Convert to IST (UTC+5:30)
     const istOffset = 5.5 * 60 * 60 * 1000;
     return new Date(now.getTime() + istOffset);
+  }
+
+  // Returns current IST time in milliseconds — use this for comparisons
+  private nowISTms(): number {
+    return Date.now() + 5.5 * 60 * 60 * 1000;
   }
 
   async getOrCreateSession(tableId: string) {
@@ -22,14 +26,15 @@ export class SessionService {
     });
 
     if (existing) {
+      // Both sides are now IST — comparison is consistent
       const isExpired =
-        Date.now() - new Date(existing.lastActivityAt).getTime() >
+        this.nowISTms() - new Date(existing.lastActivityAt).getTime() >
         this.THIRTY_MIN;
 
       if (!isExpired) {
         return this.prisma.session.update({
           where: { id: existing.id },
-          data: { lastActivityAt: this.nowIST() }, // ← IST timestamp
+          data: { lastActivityAt: this.nowIST() },
         });
       }
 
@@ -42,8 +47,8 @@ export class SessionService {
     return this.prisma.session.create({
       data: {
         tableId,
-        createdAt: this.nowIST(), // ← IST timestamp
-        lastActivityAt: this.nowIST(), // ← IST timestamp
+        createdAt: this.nowIST(),
+        lastActivityAt: this.nowIST(),
       },
     });
   }
@@ -51,7 +56,7 @@ export class SessionService {
   async touchSession(sessionId: string) {
     return this.prisma.session.update({
       where: { id: sessionId },
-      data: { lastActivityAt: this.nowIST() }, // ← IST timestamp
+      data: { lastActivityAt: this.nowIST() },
     });
   }
 }

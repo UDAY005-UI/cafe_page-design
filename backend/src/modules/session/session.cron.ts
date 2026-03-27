@@ -8,7 +8,10 @@ export class SessionCron {
 
   @Cron('*/5 * * * *') // every 5 min
   async expireSessions() {
-    const threshold = new Date(Date.now() - 30 * 60 * 1000);
+    // Threshold must be in IST to match stored IST timestamps
+    const istOffsetMs = 5.5 * 60 * 60 * 1000;
+    const nowIST = Date.now() + istOffsetMs;
+    const threshold = new Date(nowIST - 30 * 60 * 1000);
 
     await this.prisma.session.updateMany({
       where: {
