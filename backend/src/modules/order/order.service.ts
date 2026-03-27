@@ -142,6 +142,11 @@ export class OrderService {
   }
   async getAllOrders() {
     return this.prisma.order.findMany({
+      where: {
+        status: {
+          in: ['PLACED', 'PREPARING'], // ✅ filter added
+        },
+      },
       include: {
         items: {
           include: {
@@ -153,6 +158,30 @@ export class OrderService {
       },
       orderBy: {
         createdAt: 'desc',
+      },
+    });
+  }
+  async getServedOrdersWithin(minutes: number) {
+    const fromTime = new Date(Date.now() - minutes * 60 * 1000);
+
+    return this.prisma.order.findMany({
+      where: {
+        status: 'SERVED',
+        updatedAt: {
+          gte: fromTime, // ✅ served within timeframe
+        },
+      },
+      include: {
+        items: {
+          include: {
+            menuItem: true,
+          },
+        },
+        payment: true,
+        table: true,
+      },
+      orderBy: {
+        updatedAt: 'desc',
       },
     });
   }
