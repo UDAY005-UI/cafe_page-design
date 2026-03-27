@@ -179,37 +179,30 @@ function MenuPage() {
   const { toasts, add: addToast } = useToast();
   const sessionReadyRef = useRef(false);
 
-  // ── Session start — identical to original
   useEffect(() => {
-  const tableId = tableIdFromQuery;
+    const tableId = tableIdFromQuery;
+    if (tableId === null) return;
+    if (!tableId || sessionReadyRef.current) return;
 
-  if (tableId === null) return;
-  if (!tableId || sessionReadyRef.current) return;
+    const startSession = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/session/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tableId }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json() as { id: string };
+        localStorage.setItem("sessionId", data.id);
+        sessionReadyRef.current = true;
+      } catch {
+        addToast("Could not start session. Please rescan.", "error");
+      }
+    };
 
-  const startSession = async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/session/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tableId }),
-      });
+    void startSession();
+  }, [tableIdFromQuery, addToast]);
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const data = await res.json() as { id: string };
-      localStorage.setItem("sessionId", data.id);
-      sessionReadyRef.current = true;
-
-    } catch {
-      addToast("Could not start session. Please rescan.", "error");
-    }
-  };
-
-  void startSession();
-
-}, [tableIdFromQuery, addToast]);
-
-  // ── Heartbeat — identical to original
   useEffect(() => {
     const interval = setInterval(async () => {
       const { sessionId } = getSession();
@@ -225,7 +218,6 @@ function MenuPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // ── Fetch menu — identical to original
   useEffect(() => {
     const fetchMenu = async () => {
       setLoadingMenu(true);
@@ -262,40 +254,33 @@ function MenuPage() {
     });
   };
 
-  // ── Checkout — identical to original
   const handleCheckout = async () => {
-  const tableId = tableIdFromQuery;
+    const tableId = tableIdFromQuery;
+    if (!tableId) {
+      addToast("Scan the QR code on your table before placing an order.", "error");
+      return;
+    }
+    const { sessionId } = getSession();
+    if (!sessionId) {
+      setModal({ type: "session_expired" });
+      return;
+    }
+    setModal({ type: "payment_choice", pendingItem: cart[0] });
+  };
 
-  if (!tableId) {
-    addToast("Scan the QR code on your table before placing an order.", "error");
-    return;
-  }
-
-  const { sessionId } = getSession();
-  if (!sessionId) {
-    setModal({ type: "session_expired" });
-    return;
-  }
-
-  setModal({ type: "payment_choice", pendingItem: cart[0] });
-};
-
-  // ── Place order — Razorpay logic copied verbatim from original
   const placeOrder = async (method: PaymentMethod) => {
     const sessionId = localStorage.getItem("sessionId");
-const tableId = tableIdFromQuery;
+    const tableId = tableIdFromQuery;
 
-// block if no QR
-if (!tableId) {
-  addToast("Scan the QR code on your table before placing an order.", "error");
-  return;
-}
+    if (!tableId) {
+      addToast("Scan the QR code on your table before placing an order.", "error");
+      return;
+    }
+    if (!sessionId) {
+      setModal({ type: "session_expired" });
+      return;
+    }
 
-// block if no session
-if (!sessionId) {
-  setModal({ type: "session_expired" });
-  return;
-}
     setModal({ type: "ordering", method });
     try {
       if (method === "OFFLINE") {
@@ -427,25 +412,27 @@ if (!sessionId) {
 
       <div className="min-h-screen w-full bg-black pt-20">
 
-        {/* ── Hero ── */}
-        <motion.div
-          className="px-5 sm:px-10 pt-10 pb-10 sm:pb-14 max-w-3xl"
-          initial="hidden" animate="show"
-          variants={{ show: { transition: { staggerChildren: 0.12 } } }}
-        >
-          <motion.p variants={fadeUp} className="text-[#d4a762] text-xs tracking-[0.25em] uppercase mb-3 font-mono">
-            Artisan Coffee Experience
-          </motion.p>
-          <motion.h1 variants={fadeUp} className="text-white text-4xl sm:text-5xl lg:text-6xl font-serif leading-tight mb-5">
-            Our Menu
-          </motion.h1>
-          <motion.p variants={fadeUp} className="text-gray-400 text-sm sm:text-base leading-relaxed">
-            Every cup on this list is brewed with precision, passion, and a touch of elegance.
-          </motion.p>
-        </motion.div>
+        {/* ── Centered container ── */}
+        <div className="max-w-7xl mx-auto px-6 sm:px-12 lg:px-24 xl:px-30">
 
-        {/* ── Divider ── */}
-        <div className="px-5 sm:px-10">
+          {/* ── Hero ── */}
+          <motion.div
+            className="pt-10 pb-10 sm:pb-14 max-w-3xl"
+            initial="hidden" animate="show"
+            variants={{ show: { transition: { staggerChildren: 0.12 } } }}
+          >
+            <motion.p variants={fadeUp} className="text-[#d4a762] text-xs tracking-[0.25em] uppercase mb-3 font-mono">
+              Artisan Coffee Experience
+            </motion.p>
+            <motion.h1 variants={fadeUp} className="text-white text-4xl sm:text-5xl lg:text-6xl font-serif leading-tight mb-5">
+              Our Menu
+            </motion.h1>
+            <motion.p variants={fadeUp} className="text-gray-400 text-sm sm:text-base leading-relaxed">
+              Every cup on this list is brewed with precision, passion, and a touch of elegance.
+            </motion.p>
+          </motion.div>
+
+          {/* ── Divider ── */}
           <motion.div
             className="w-full h-px"
             style={{ background: "linear-gradient(90deg, #c49a45 0%, #1e1508 55%, transparent 100%)" }}
@@ -453,126 +440,127 @@ if (!sessionId) {
             animate={{ scaleX: 1 }}
             transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
           />
-        </div>
 
-        {/* ── Menu sections ── */}
-        <div className="px-5 sm:px-10 py-10 sm:py-14 max-w-5xl mx-auto flex flex-col gap-12 sm:gap-16">
-          {loadingMenu ? (
-            Array.from({ length: 3 }).map((_, si) => (
-              <div key={si} className="flex flex-col gap-4">
-                <div className="h-7 w-36 bg-[#1a1208] rounded-lg animate-pulse" />
-                {Array.from({ length: 4 }).map((_, ii) => (
-                  <div key={ii} className="flex justify-between py-5 border-b border-[#1a1208]">
-                    <div className="flex flex-col gap-2">
-                      <div className="h-4 w-32 bg-[#1a1208] rounded animate-pulse" />
-                      <div className="h-3 w-48 bg-[#1a1208] rounded animate-pulse" />
+          {/* ── Menu sections ── */}
+          <div className="py-10 sm:py-14 flex flex-col gap-12 sm:gap-16">
+            {loadingMenu ? (
+              Array.from({ length: 3 }).map((_, si) => (
+                <div key={si} className="flex flex-col gap-4">
+                  <div className="h-7 w-36 bg-[#1a1208] rounded-lg animate-pulse" />
+                  {Array.from({ length: 4 }).map((_, ii) => (
+                    <div key={ii} className="flex justify-between py-5 border-b border-[#1a1208]">
+                      <div className="flex flex-col gap-2">
+                        <div className="h-4 w-32 bg-[#1a1208] rounded animate-pulse" />
+                        <div className="h-3 w-48 bg-[#1a1208] rounded animate-pulse" />
+                      </div>
+                      <div className="h-4 w-16 bg-[#1a1208] rounded animate-pulse" />
                     </div>
-                    <div className="h-4 w-16 bg-[#1a1208] rounded animate-pulse" />
-                  </div>
-                ))}
-              </div>
-            ))
-          ) : Object.keys(grouped).length === 0 ? (
-            <motion.p variants={fadeUp} initial="hidden" animate="show"
-              className="text-gray-600 text-center py-20">
-              No items available right now.
-            </motion.p>
-          ) : (
-            Object.entries(grouped).map(([category, items], si) => {
-              const meta = categoryMeta[category] ?? { tag: "Selection" };
-              return (
-                <motion.div
-                  key={si}
-                  initial="hidden" whileInView="show"
-                  viewport={{ once: true, margin: "-60px" }}
-                  variants={{ show: { transition: { staggerChildren: 0.07 } } }}
-                >
-                  <motion.div variants={fadeUp} className="flex flex-wrap items-end justify-between gap-3 mb-5 sm:mb-7">
-                    <div>
-                      <p className="text-[#d4a762] text-xs tracking-[0.2em] uppercase mb-1 font-mono">{meta.tag}</p>
-                      <h2 className="text-white text-2xl sm:text-3xl font-serif italic">{category}</h2>
-                    </div>
-                    <div className="flex items-center gap-3 mb-1">
-                      <div className="hidden sm:block h-px w-28"
-                        style={{ background: "linear-gradient(90deg, #2a1e0a, transparent)" }} />
-                      <span className="text-gray-600 text-xs">{items.length} items</span>
+                  ))}
+                </div>
+              ))
+            ) : Object.keys(grouped).length === 0 ? (
+              <motion.p variants={fadeUp} initial="hidden" animate="show"
+                className="text-gray-600 text-center py-20">
+                No items available right now.
+              </motion.p>
+            ) : (
+              Object.entries(grouped).map(([category, items], si) => {
+                const meta = categoryMeta[category] ?? { tag: "Selection" };
+                return (
+                  <motion.div
+                    key={si}
+                    initial="hidden" whileInView="show"
+                    viewport={{ once: true, margin: "-60px" }}
+                    variants={{ show: { transition: { staggerChildren: 0.07 } } }}
+                  >
+                    <motion.div variants={fadeUp} className="flex flex-wrap items-end justify-between gap-3 mb-5 sm:mb-7">
+                      <div>
+                        <p className="text-[#d4a762] text-xs tracking-[0.2em] uppercase mb-1 font-mono">{meta.tag}</p>
+                        <h2 className="text-white text-2xl sm:text-3xl font-serif italic">{category}</h2>
+                      </div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <div className="hidden sm:block h-px w-28"
+                          style={{ background: "linear-gradient(90deg, #2a1e0a, transparent)" }} />
+                        <span className="text-gray-600 text-xs">{items.length} items</span>
+                      </div>
+                    </motion.div>
+
+                    <div className="flex flex-col divide-y divide-[#150f05]">
+                      {items.map((item, ii) => {
+                        const inCart = cart.find((c) => c.id === item.id);
+                        return (
+                          <motion.div
+                            key={ii}
+                            custom={ii}
+                            variants={fadeUp}
+                            className="flex items-center justify-between gap-4 py-4 group hover:bg-[#0d0a05] -mx-3 px-3 rounded-xl transition"
+                          >
+                            <div className="flex flex-col gap-0.5 min-w-0">
+                              <span className="text-gray-200 text-sm sm:text-base font-medium group-hover:text-[#d4a762] transition-colors truncate">
+                                {item.name}
+                              </span>
+                              {item.description && (
+                                <span className="text-gray-500 text-xs italic line-clamp-1">{item.description}</span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-3 sm:gap-5 shrink-0">
+                              <span className="text-[#c49a45] text-sm sm:text-base font-semibold">₹{item.price}</span>
+
+                              <AnimatePresence mode="wait">
+                                {inCart ? (
+                                  <motion.div
+                                    key="stepper"
+                                    initial={{ opacity: 0, scale: 0.88 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.88 }}
+                                    transition={{ duration: 0.18 }}
+                                    className="flex items-center gap-1.5 sm:gap-2"
+                                  >
+                                    <motion.button
+                                      whileTap={{ scale: 0.85 }}
+                                      onClick={() => removeFromCart(item.id)}
+                                      className="w-7 h-7 rounded-full border border-[#2a1e0a] text-[#d4a762]/50 hover:border-[#c49a45] hover:text-[#c49a45] text-base leading-none grid place-items-center transition"
+                                    >−</motion.button>
+                                    <span className="text-gray-200 text-sm font-bold w-5 text-center tabular-nums">
+                                      {inCart.quantity}
+                                    </span>
+                                    <motion.button
+                                      whileTap={{ scale: 0.85 }}
+                                      onClick={() => addToCart(item)}
+                                      className="w-7 h-7 rounded-full text-black text-base leading-none grid place-items-center transition"
+                                      style={{ background: "#c49a45" }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.background = "#d4a762")}
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = "#c49a45")}
+                                    >+</motion.button>
+                                  </motion.div>
+                                ) : (
+                                  <motion.button
+                                    key="add"
+                                    initial={{ opacity: 0, scale: 0.88 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.88 }}
+                                    transition={{ duration: 0.18 }}
+                                    whileTap={{ scale: 0.93 }}
+                                    onClick={() => addToCart(item)}
+                                    className="px-3 py-1.5 border border-[#2a1e0a] hover:border-[#c49a45] hover:text-[#c49a45] text-[#d4a762]/40 text-xs rounded-full transition tracking-widest"
+                                  >
+                                    ADD
+                                  </motion.button>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   </motion.div>
+                );
+              })
+            )}
+          </div>
 
-                  <div className="flex flex-col divide-y divide-[#150f05]">
-                    {items.map((item, ii) => {
-                      const inCart = cart.find((c) => c.id === item.id);
-                      return (
-                        <motion.div
-                          key={ii}
-                          custom={ii}
-                          variants={fadeUp}
-                          className="flex items-center justify-between gap-4 py-4 group hover:bg-[#0d0a05] -mx-3 px-3 rounded-xl transition"
-                        >
-                          <div className="flex flex-col gap-0.5 min-w-0">
-                            <span className="text-gray-200 text-sm sm:text-base font-medium group-hover:text-[#d4a762] transition-colors truncate">
-                              {item.name}
-                            </span>
-                            {item.description && (
-                              <span className="text-gray-500 text-xs italic line-clamp-1">{item.description}</span>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-3 sm:gap-5 shrink-0">
-                            <span className="text-[#c49a45] text-sm sm:text-base font-semibold">₹{item.price}</span>
-
-                            <AnimatePresence mode="wait">
-                              {inCart ? (
-                                <motion.div
-                                  key="stepper"
-                                  initial={{ opacity: 0, scale: 0.88 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  exit={{ opacity: 0, scale: 0.88 }}
-                                  transition={{ duration: 0.18 }}
-                                  className="flex items-center gap-1.5 sm:gap-2"
-                                >
-                                  <motion.button
-                                    whileTap={{ scale: 0.85 }}
-                                    onClick={() => removeFromCart(item.id)}
-                                    className="w-7 h-7 rounded-full border border-[#2a1e0a] text-[#d4a762]/50 hover:border-[#c49a45] hover:text-[#c49a45] text-base leading-none grid place-items-center transition"
-                                  >−</motion.button>
-                                  <span className="text-gray-200 text-sm font-bold w-5 text-center tabular-nums">
-                                    {inCart.quantity}
-                                  </span>
-                                  <motion.button
-                                    whileTap={{ scale: 0.85 }}
-                                    onClick={() => addToCart(item)}
-                                    className="w-7 h-7 rounded-full text-black text-base leading-none grid place-items-center transition"
-                                    style={{ background: "#c49a45" }}
-                                    onMouseEnter={(e) => (e.currentTarget.style.background = "#d4a762")}
-                                    onMouseLeave={(e) => (e.currentTarget.style.background = "#c49a45")}
-                                  >+</motion.button>
-                                </motion.div>
-                              ) : (
-                                <motion.button
-                                  key="add"
-                                  initial={{ opacity: 0, scale: 0.88 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  exit={{ opacity: 0, scale: 0.88 }}
-                                  transition={{ duration: 0.18 }}
-                                  whileTap={{ scale: 0.93 }}
-                                  onClick={() => addToCart(item)}
-                                  className="px-3 py-1.5 border border-[#2a1e0a] hover:border-[#c49a45] hover:text-[#c49a45] text-[#d4a762]/40 text-xs rounded-full transition tracking-widest"
-                                >
-                                  ADD
-                                </motion.button>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              );
-            })
-          )}
-        </div>
+        </div>{/* end centered container */}
 
         <div className="h-28" />
       </div>
@@ -613,8 +601,6 @@ if (!sessionId) {
         {modal.type === "cart" && (
           <Backdrop key="cart" onClose={() => setModal({ type: "idle" })}>
             <div className="rounded-2xl flex flex-col overflow-hidden" style={{ ...card, maxHeight: "80vh" }}>
-
-              {/* Header */}
               <div className="flex items-center justify-between px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-[#1e1508] shrink-0">
                 <div className="flex flex-col gap-0.5">
                   <p className="text-[#d4a762] text-xs tracking-[0.22em] uppercase font-mono">Your Order</p>
@@ -645,7 +631,6 @@ if (!sessionId) {
                 </div>
               ) : (
                 <>
-                  {/* Scrollable items — flex-1 + min-h-0 is the key fix */}
                   <div className="flex-1 overflow-y-auto cart-scroll px-5 sm:px-6 min-h-0">
                     <AnimatePresence initial={false}>
                       {cart.map((item) => (
@@ -682,7 +667,6 @@ if (!sessionId) {
                     </AnimatePresence>
                   </div>
 
-                  {/* Pinned footer */}
                   <div className="shrink-0 px-5 sm:px-6 pt-4 pb-5 sm:pb-6 border-t border-[#1e1508] flex flex-col gap-4 bg-[#080603]">
                     <div className="flex items-center justify-between">
                       <span className="text-gray-500 text-sm">Total Amount</span>

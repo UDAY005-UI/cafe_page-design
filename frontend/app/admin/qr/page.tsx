@@ -75,15 +75,22 @@ interface QrCardProps {
   qr: QrItem;
   index: number;
   onSelect: (tableNumber: number) => void;
+  onDelete: (tableNumber: number) => void;
+  deleting: boolean;
 }
 
-function QrCard({ qr, index, onSelect }: QrCardProps) {
+function QrCard({ qr, index, onSelect, onDelete, deleting }: QrCardProps) {
   const handleDownload = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     const a = document.createElement("a");
     a.href = `data:image/png;base64,${qr.qr}`;
     a.download = `table-${qr.tableNumber}-qr.png`;
     a.click();
+  };
+
+  const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    onDelete(qr.tableNumber);
   };
 
   return (
@@ -95,6 +102,8 @@ function QrCard({ qr, index, onSelect }: QrCardProps) {
         border: "1px solid rgba(196,154,69,0.22)",
         boxShadow: "0 0 10px rgba(196,154,69,0.08), inset 0 0 0 1px rgba(196,154,69,0.04)",
         animationDelay: `${index * 40}ms`,
+        opacity: deleting ? 0.4 : 1,
+        pointerEvents: deleting ? "none" : "auto",
       }}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLDivElement).style.border = "1px solid rgba(196,154,69,0.7)";
@@ -105,10 +114,11 @@ function QrCard({ qr, index, onSelect }: QrCardProps) {
         (e.currentTarget as HTMLDivElement).style.boxShadow = "0 0 10px rgba(196,154,69,0.08), inset 0 0 0 1px rgba(196,154,69,0.04)";
       }}
     >
+      {/* Download button — top left */}
       <button
         onClick={handleDownload}
-        className="absolute top-2 right-2 w-6 h-6 rounded-md grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
-        style={{ background: "var(--gold)", color: "#1a0f00" }}
+        className="absolute top-2 left-2 w-6 h-6 rounded-md grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+        style={{ background: "rgba(30,120,60,0.85)", color: "#fff" }}
         title="Download"
       >
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -116,6 +126,27 @@ function QrCard({ qr, index, onSelect }: QrCardProps) {
           <polyline points="7 10 12 15 17 10" />
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
+      </button>
+
+      {/* Delete button — top right */}
+      <button
+        onClick={handleDelete}
+        className="absolute top-2 right-2 w-6 h-6 rounded-md grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+        style={{ background: "rgba(180,50,30,0.85)", color: "#fff" }}
+        title="Delete"
+      >
+        {deleting ? (
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+        ) : (
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6M14 11v6" />
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+          </svg>
+        )}
       </button>
 
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -161,7 +192,6 @@ function QrPlaceholder() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 const QrDashboard: NextPage = () => {
-  // changed: tableNumber is now a string so placeholder works naturally on empty input
   const [tableNumber, setTableNumber] = useState<string>("");
   const [generating, setGenerating] = useState<boolean>(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -172,6 +202,7 @@ const QrDashboard: NextPage = () => {
   const [loadingQrs, setLoadingQrs] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [search, setSearch] = useState<string>("");
+  const [deletingTables, setDeletingTables] = useState<Set<number>>(new Set());
   const { toasts, add: addToast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -204,20 +235,15 @@ const QrDashboard: NextPage = () => {
 
   const generateQr = async () => {
     const parsed = parseInt(tableNumber, 10);
-
-    // ── Validation ────────────────────────────────────────────────────────────
     if (!tableNumber || isNaN(parsed) || parsed < 1) {
       addToast("Enter a valid table number", "error");
       return;
     }
-
-    // ── Duplicate check: block if QR already exists for this table ────────────
     const alreadyExists = allQrs.some((q) => q.tableNumber === parsed);
     if (alreadyExists) {
       addToast(`Table ${parsed} already has a QR code`, "error");
       return;
     }
-
     setGenerating(true);
     setPreviewUrl(null);
     try {
@@ -237,6 +263,32 @@ const QrDashboard: NextPage = () => {
       addToast("Failed to generate QR — check backend", "error");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const deleteQr = async (tableNumber: number) => {
+    setDeletingTables((prev) => new Set(prev).add(tableNumber));
+    try {
+      const res = await fetch(`${BASE_URL}/qr/t/${tableNumber}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      addToast(`Table ${tableNumber} QR deleted`, "success");
+      // Clear preview if deleted table matches current preview
+      if (currentTableNum === tableNumber) {
+        setPreviewUrl(null);
+        setCurrentBlob(null);
+        setCurrentTableNum(null);
+      }
+      loadAllQrs(true);
+    } catch {
+      addToast(`Failed to delete Table ${tableNumber}`, "error");
+    } finally {
+      setDeletingTables((prev) => {
+        const next = new Set(prev);
+        next.delete(tableNumber);
+        return next;
+      });
     }
   };
 
@@ -271,7 +323,6 @@ const QrDashboard: NextPage = () => {
         <style>{`
           body { font-family: 'Azeret Mono', monospace; }
 
-          /* ── Caffiq Gold palette ── */
           :root {
             --gold:          #c49a45;
             --gold-bright:   #d4a762;
@@ -288,7 +339,6 @@ const QrDashboard: NextPage = () => {
             --border-bright: #2a1c0a;
           }
 
-          /* ── Glowy gold border utility ── */
           .gold-border {
             border: 1px solid rgba(196,154,69,0.30) !important;
             box-shadow: 0 0 14px rgba(196,154,69,0.12), inset 0 0 0 1px rgba(196,154,69,0.05);
@@ -305,12 +355,10 @@ const QrDashboard: NextPage = () => {
           @keyframes spin-conic { to { transform: rotate(360deg); } }
           .spin-conic          { animation: spin-conic 1.5s linear infinite; }
 
-          /* hide number spinner arrows */
           input[type=number]::-webkit-inner-spin-button,
           input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
           input[type=number] { -moz-appearance: textfield; }
 
-          /* placeholder color */
           input::placeholder { color: var(--gold-dim); opacity: 1; }
 
           ::-webkit-scrollbar       { width: 4px; }
@@ -319,7 +367,7 @@ const QrDashboard: NextPage = () => {
         `}</style>
       </Head>
 
-      {/* ── Background ── */}
+      {/* Background */}
       <div
         className="fixed inset-0 z-0"
         style={{
@@ -336,10 +384,10 @@ const QrDashboard: NextPage = () => {
         style={{ background: "radial-gradient(ellipse at 100% 100%, rgba(212,167,98,0.06) 0%, transparent 65%)" }}
       />
 
-      <div className="relative z-10 min-h-screen text-white">
+      <div className="relative z-10 min-h-screen text-white pt-32">
         <div className="max-w-6xl mx-auto px-6">
 
-          {/* ── Header ── */}
+          {/* Header */}
           <header
             className="flex items-center justify-between py-8 border-b"
             style={{ borderColor: "rgba(196,154,69,0.20)" }}
@@ -373,7 +421,7 @@ const QrDashboard: NextPage = () => {
             </div>
           </header>
 
-          {/* ── Stats ── */}
+          {/* Stats */}
           <div
             className="mt-8 grid grid-cols-2 rounded-2xl overflow-hidden mb-8 gold-border"
             style={{ background: "var(--surface2)" }}
@@ -394,10 +442,10 @@ const QrDashboard: NextPage = () => {
             ))}
           </div>
 
-          {/* ── Main Grid ── */}
+          {/* Main Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 pb-16">
 
-            {/* ── Generator Panel ── */}
+            {/* Generator Panel */}
             <div
               className="rounded-2xl overflow-hidden flex flex-col gold-border"
               style={{ background: "var(--surface2)" }}
@@ -412,8 +460,6 @@ const QrDashboard: NextPage = () => {
               </div>
 
               <div className="p-6 flex flex-col gap-5 flex-1">
-
-                {/* ── Table number input — no stepper, full width, placeholder ── */}
                 <div>
                   <label className="block text-[10px] tracking-[2px] uppercase mb-3" style={{ color: "var(--gold-muted)" }}>
                     Table Number
@@ -434,7 +480,7 @@ const QrDashboard: NextPage = () => {
                       background: "var(--surface)",
                       border: "1px solid rgba(196,154,69,0.22)",
                       color: "var(--off-white)",
-                      boxSizing: "border-box",   /* fixes width overflow */
+                      boxSizing: "border-box",
                       boxShadow: "0 0 10px rgba(196,154,69,0.06)",
                     }}
                     onFocus={(e) => {
@@ -525,7 +571,7 @@ const QrDashboard: NextPage = () => {
               </div>
             </div>
 
-            {/* ── All QRs Panel ── */}
+            {/* All QRs Panel */}
             <div
               className="rounded-2xl overflow-hidden flex flex-col gold-border"
               style={{ background: "var(--surface2)" }}
@@ -622,6 +668,8 @@ const QrDashboard: NextPage = () => {
                           setTableNumber(String(n));
                           window.scrollTo({ top: 0, behavior: "smooth" });
                         }}
+                        onDelete={deleteQr}
+                        deleting={deletingTables.has(qr.tableNumber)}
                       />
                     ))}
                   </div>

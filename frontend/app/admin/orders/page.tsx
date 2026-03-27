@@ -231,7 +231,7 @@ export default function OrdersPage() {
         }
       `}</style>
 
-      <div className="relative min-h-screen w-full bg-black overflow-x-hidden">
+      <div className="relative min-h-screen w-full bg-black overflow-x-hidden pt-24">
 
         {/* Ambient orbs */}
         <div className="absolute top-0 right-0 w-96 h-96 rounded-full pointer-events-none"

@@ -9,7 +9,7 @@ export default function UserTopbar() {
     <div className="fixed top-6 z-50 w-full flex justify-center">
       <nav
         className="
-          w-[95%] max-w-screen-xl
+          w-[95%] max-w-7xl
           flex items-center justify-between
           px-6 sm:px-10 py-4
           rounded-4xl

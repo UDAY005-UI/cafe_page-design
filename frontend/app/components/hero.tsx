@@ -22,11 +22,8 @@ export default function Hero() {
     const onMove = (e: MouseEvent) => {
       const target = e.currentTarget as HTMLElement;
       const { width, height, left, top } = target.getBoundingClientRect();
-
-      const clientX = e.clientX;
-      const clientY = e.clientY;
-      const dx = (clientX - left - width / 2) / width;
-      const dy = (clientY - top - height / 2) / height;
+      const dx = (e.clientX - left - width / 2) / width;
+      const dy = (e.clientY - top - height / 2) / height;
       img.style.transform = `translate(${dx * -18}px, ${dy * -12}px) scale(1.03)`;
     };
     const onLeave = () => {
@@ -130,18 +127,33 @@ export default function Hero() {
         ref={sectionRef}
         className={`relative overflow-hidden w-full min-h-screen bg-black ${mounted ? "anim-ready" : ""}`}
       >
-        {/* Ambient orbs */}
+        {/* ── Ambient orbs ──
+            Shifted down (~navbar height) so they sit behind the content
+            and blend naturally — no black gap at the top. */}
         <div
-          className="absolute top-[-10%] right-[10%] w-120 h-120 rounded-full pointer-events-none orb-pulse"
-          style={{ background: "radial-gradient(circle, rgba(196,154,69,.28) 0%, transparent 70%)", filter: "blur(60px)" }}
+          className="absolute right-[10%] w-120 h-120 rounded-full pointer-events-none orb-pulse"
+          style={{
+            top: "8%",          // was -10% — now starts below navbar
+            background: "radial-gradient(circle, rgba(196,154,69,.28) 0%, transparent 70%)",
+            filter: "blur(60px)",
+          }}
         />
         <div
           className="absolute bottom-[-5%] right-[30%] w-[320px] h-80 rounded-full pointer-events-none glow-breath"
-          style={{ background: "radial-gradient(circle, rgba(255,145,65,.22) 0%, transparent 70%)", filter: "blur(50px)", animationDelay: "1.2s" }}
+          style={{
+            background: "radial-gradient(circle, rgba(255,145,65,.22) 0%, transparent 70%)",
+            filter: "blur(50px)",
+            animationDelay: "1.2s",
+          }}
         />
         <div
-          className="absolute top-[40%] left-[5%] w-50 h-50 rounded-full pointer-events-none glow-breath"
-          style={{ background: "radial-gradient(circle, rgba(255,175,85,.12) 0%, transparent 70%)", filter: "blur(40px)", animationDelay: "2s" }}
+          className="absolute left-[5%] w-50 h-50 rounded-full pointer-events-none glow-breath"
+          style={{
+            top: "46%",
+            background: "radial-gradient(circle, rgba(255,175,85,.12) 0%, transparent 70%)",
+            filter: "blur(40px)",
+            animationDelay: "2s",
+          }}
         />
 
         {/* Noise grain */}
@@ -155,10 +167,16 @@ export default function Hero() {
         />
 
         {/* ══ DESKTOP (lg+) ══ */}
-        <div className="hidden lg:flex relative z-10 w-full h-screen items-center">
+        <div className="hidden lg:flex relative z-10 w-full h-screen items-center pt-16">
+          {/*
+            pt-16 (64px) = standard navbar height.
+            This shifts the content block down uniformly so it doesn't
+            sit under the navbar, WITHOUT adding a black gap — because
+            the orbs above are already positioned to cover this area.
+          */}
 
           {/* Left: Text */}
-          <div className="flex flex-col gap-5 pl-20 xl:pl-32 pt-10 max-w-[52%]">
+          <div className="flex flex-col gap-5 pl-20 xl:pl-32 max-w-[52%]">
             <div className={`pre-anim hero-label flex items-center gap-3`}>
               <span className="block w-8 h-0.5 rounded-full bg-[#ffd28c]" />
               <p className="text-[#ffd28c] tracking-[.2em] text-sm uppercase font-medium">
@@ -166,8 +184,10 @@ export default function Hero() {
               </p>
             </div>
 
-            <h1 className={`pre-anim hero-h1 text-white leading-[1.02] font-serif`}
-              style={{ fontSize: "clamp(3.5rem, 7vw, 6.5rem)" }}>
+            <h1
+              className={`pre-anim hero-h1 text-white leading-[1.02] font-serif`}
+              style={{ fontSize: "clamp(3.5rem, 7vw, 6.5rem)" }}
+            >
               Indulge <br />
               <span style={{ color: "#ffd28c" }}>in Every</span> Sip
             </h1>
@@ -210,7 +230,7 @@ export default function Hero() {
                 radial-gradient(ellipse 20% 30% at 59% 70%, rgba(255,125,50,.24) 0%, transparent 100%),
                 linear-gradient(to bottom, rgba(0,0,0,0) 35%, rgba(0,0,0,.25) 65%, rgba(0,0,0,1) 95%),
                 linear-gradient(to right, #000 0%, #000 42%, transparent 100%)
-              `
+              `,
             }}
           >
             <div className="relative">
@@ -252,8 +272,10 @@ export default function Hero() {
           </div>
 
           {/* 2. Heading */}
-          <h1 className={`pre-anim hero-h1 text-white font-serif leading-[1.05]`}
-            style={{ fontSize: "clamp(2.6rem, 10vw, 4rem)" }}>
+          <h1
+            className={`pre-anim hero-h1 text-white font-serif leading-[1.05]`}
+            style={{ fontSize: "clamp(2.6rem, 10vw, 4rem)" }}
+          >
             Indulge <br />
             <span style={{ color: "#ffd28c" }}>in Every</span> Sip
           </h1>
@@ -312,14 +334,16 @@ export default function Hero() {
 
           {/* 7. CTA — below the cup */}
           <div className={`pre-anim hero-btn flex flex-wrap items-center justify-center gap-4 mt-20`}>
-            <Link href={'/menu'} className="btn-shimmer px-6 py-3 rounded-full text-black font-semibold text-sm tracking-wide">
+            <Link href={"/menu"} className="btn-shimmer px-6 py-3 rounded-full text-black font-semibold text-sm tracking-wide">
               Sip the Experience →
             </Link>
-            <Link href={'/menu'} className="text-gray-400 text-sm hover:text-[#ffd28c] transition-colors underline underline-offset-4 decoration-[#ffd28c]/30">
+            <Link
+              href={"/menu"}
+              className="text-gray-400 text-sm hover:text-[#ffd28c] transition-colors underline underline-offset-4 decoration-[#ffd28c]/30"
+            >
               View Our Menu
             </Link>
           </div>
-
         </div>
 
         {/* Bottom fade */}

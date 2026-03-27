@@ -14,15 +14,15 @@ export default function AdminNavbar() {
   return (
     <nav
       className="
-        fixed top-6 z-50 lg:left-8
-        w-[95%] max-w-screen
-        flex items-center justify-between
-        px-10 py-4
-        rounded-4xl
-        bg-black/60 backdrop-blur-md
-        border border-white/10
-        shadow-[0_10px_40px_rgba(0,0,0,0.4)]
-      "
+    fixed top-6 z-50 left-1/2 -translate-x-1/2
+    w-[95%] max-w-7xl
+    flex items-center justify-between
+    px-6 sm:px-10 py-4
+    rounded-4xl
+    bg-black/60 backdrop-blur-md
+    border border-white/10
+    shadow-[0_10px_40px_rgba(0,0,0,0.4)]
+  "
     >
       {/* Logo */}
       <div className="flex items-center gap-2 text-white font-serif text-xl tracking-wide">
