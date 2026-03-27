@@ -6,11 +6,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html>
-      <body className="min-h-full flex flex-col">
+      <div className="min-h-full flex flex-col">
         <AdminNavbar/>
         {children}
-        </body>
-    </html>
+        </div>
   );
 }

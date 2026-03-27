@@ -30,6 +30,10 @@ interface Order {
   createdAt: string;
   items: OrderItem[];
   payment?: Payment;
+  table: {
+    id: string;
+    tableNumber: number;
+  };
 }
 
 type ConfirmState =
@@ -37,16 +41,16 @@ type ConfirmState =
   | { type: 'confirm'; orderId: string; newStatus: OrderStatus };
 
 const STATUS_META: Record<OrderStatus, { label: string; color: string; dot: string; bg: string }> = {
-  PLACED:    { label: 'Placed',     color: 'text-[#d4a762]',   dot: 'bg-[#d4a762]',   bg: 'rgba(196,154,69,0.08)'  },
-  PREPARING: { label: 'Preparing',  color: 'text-amber-400',   dot: 'bg-amber-400',   bg: 'rgba(251,191,36,0.08)'  },
-  SERVED:    { label: 'Served',     color: 'text-emerald-400', dot: 'bg-emerald-400', bg: 'rgba(52,211,153,0.08)'  },
-  CANCELLED: { label: 'Cancelled',  color: 'text-red-400',     dot: 'bg-red-500',     bg: 'rgba(239,68,68,0.08)'   },
+  PLACED: { label: 'Placed', color: 'text-[#d4a762]', dot: 'bg-[#d4a762]', bg: 'rgba(196,154,69,0.08)' },
+  PREPARING: { label: 'Preparing', color: 'text-amber-400', dot: 'bg-amber-400', bg: 'rgba(251,191,36,0.08)' },
+  SERVED: { label: 'Served', color: 'text-emerald-400', dot: 'bg-emerald-400', bg: 'rgba(52,211,153,0.08)' },
+  CANCELLED: { label: 'Cancelled', color: 'text-red-400', dot: 'bg-red-500', bg: 'rgba(239,68,68,0.08)' },
 };
 
 const ACTION_BUTTONS: { status: OrderStatus; label: string; style: 'gold' | 'outline' | 'danger' }[] = [
-  { status: 'PREPARING', label: 'Mark Preparing', style: 'gold'    },
-  { status: 'SERVED',    label: 'Mark Served',    style: 'outline' },
-  { status: 'CANCELLED', label: 'Cancel Order',   style: 'danger'  },
+  { status: 'PREPARING', label: 'Mark Preparing', style: 'gold' },
+  { status: 'SERVED', label: 'Mark Served', style: 'outline' },
+  { status: 'CANCELLED', label: 'Cancel Order', style: 'danger' },
 ];
 
 const fadeUp: Variants = {
@@ -56,7 +60,7 @@ const fadeUp: Variants = {
     y: 0,
     transition: {
       duration: 0.5,
-      ease: "easeOut", 
+      ease: "easeOut",
       delay: i * 0.07,
     },
   }),
@@ -83,8 +87,8 @@ const modalAnim: Variants = {
 
 const backdropAnim = {
   hidden: { opacity: 0 },
-  show:   { opacity: 1, transition: { duration: 0.22 } },
-  exit:   { opacity: 0, transition: { duration: 0.18 } },
+  show: { opacity: 1, transition: { duration: 0.22 } },
+  exit: { opacity: 0, transition: { duration: 0.18 } },
 };
 
 function formatTime(iso: string) {
@@ -95,16 +99,20 @@ function formatDate(iso: string) {
 }
 
 export default function OrdersPage() {
-  const [orders, setOrders]   = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirm, setConfirm] = useState<ConfirmState>({ type: 'idle' });
   const [updating, setUpdating] = useState<string | null>(null);
+  const [servedOrders, setServedOrders] = useState<Order[]>([]);
+  const [timeframe, setTimeframe] = useState<number | ''>(60);
+  const [servedError, setServedError] = useState<string | null>(null);
+  const [servedLoading, setServedLoading] = useState(false);
 
   const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
 
   const fetchOrders = async () => {
     try {
-      const res  = await fetch(`${API_BASE}/orders/all-orders`);
+      const res = await fetch(`${API_BASE}/orders/all-orders`);
       const data = await res.json() as Order[];
       setOrders(data);
     } catch (err) {
@@ -114,7 +122,35 @@ export default function OrdersPage() {
     }
   };
 
-  useEffect(() => { fetchOrders(); }, []);
+  const fetchServedOrders = async (minutes: number) => {
+    try {
+      setServedLoading(true);
+      setServedError(null);
+
+      const res = await fetch(`${API_BASE}/orders/served/${minutes}`);
+
+      if (!res.ok) {
+        const text = await res.text();
+        setServedError(text || 'Failed to fetch served orders');
+        setServedOrders([]);
+        return;
+      }
+
+      const data = await res.json() as Order[];
+      setServedOrders(data);
+
+    } catch (err) {
+      setServedError('Network error');
+      setServedOrders([]);
+    } finally {
+      setServedLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+    if (timeframe !== '') fetchServedOrders(timeframe);
+  }, []);
 
   const requestUpdate = (orderId: string, status: OrderStatus) => {
     setConfirm({ type: 'confirm', orderId, newStatus: status });
@@ -127,9 +163,9 @@ export default function OrdersPage() {
     setUpdating(orderId);
     try {
       await fetch(`${API_BASE}/orders/${orderId}/status`, {
-        method:  'PATCH',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus }),
       });
       setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: newStatus } : o));
     } catch (err) {
@@ -140,10 +176,10 @@ export default function OrdersPage() {
   };
 
   // ── Stats
-  const total     = orders.length;
-  const placed    = orders.filter(o => o.status === 'PLACED').length;
+  const total = orders.length;
+  const placed = orders.filter(o => o.status === 'PLACED').length;
   const preparing = orders.filter(o => o.status === 'PREPARING').length;
-  const served    = orders.filter(o => o.status === 'SERVED').length;
+  const served = orders.filter(o => o.status === 'SERVED').length;
 
   return (
     <>
@@ -230,10 +266,10 @@ export default function OrdersPage() {
             variants={{ show: { transition: { staggerChildren: 0.08 } } }}
           >
             {[
-              { label: 'Total',     value: total,     color: 'text-gray-300'   },
-              { label: 'Placed',    value: placed,    color: 'text-[#d4a762]'  },
-              { label: 'Preparing', value: preparing, color: 'text-amber-400'  },
-              { label: 'Served',    value: served,    color: 'text-emerald-400'},
+              { label: 'Total', value: total, color: 'text-gray-300' },
+              { label: 'Placed', value: placed, color: 'text-[#d4a762]' },
+              { label: 'Preparing', value: preparing, color: 'text-amber-400' },
+              { label: 'Served', value: served, color: 'text-emerald-400' },
             ].map((s, i) => (
               <motion.div
                 key={s.label}
@@ -276,8 +312,8 @@ export default function OrdersPage() {
               <div className="w-14 h-14 rounded-full border border-[#2a1e0a] flex items-center justify-center"
                 style={{ background: 'radial-gradient(circle, rgba(196,154,69,0.06) 0%, transparent 70%)' }}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c49a45" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5">
-                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
-                  <rect x="9" y="3" width="6" height="4" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>
+                  <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+                  <rect x="9" y="3" width="6" height="4" rx="2" /><line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="16" x2="13" y2="16" />
                 </svg>
               </div>
               <p className="text-gray-600 text-sm">No orders yet.</p>
@@ -289,9 +325,9 @@ export default function OrdersPage() {
               variants={{ show: { transition: { staggerChildren: 0.07 } } }}
             >
               {orders.map((order, idx) => {
-                const meta    = STATUS_META[order.status];
-                const isUpd   = updating === order.id;
-                const isDone  = order.status === 'SERVED' || order.status === 'CANCELLED';
+                const meta = STATUS_META[order.status];
+                const isUpd = updating === order.id;
+                const isDone = order.status === 'SERVED' || order.status === 'CANCELLED';
 
                 return (
                   <motion.div
@@ -316,7 +352,7 @@ export default function OrdersPage() {
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <p className="text-gray-300 text-sm font-mono tracking-widest">
-                              #{order.id.slice(-8).toUpperCase()}
+                              Table {order.table.tableNumber}
                             </p>
                             {/* Status badge */}
                             <span
@@ -376,11 +412,10 @@ export default function OrdersPage() {
                                   key={status}
                                   whileTap={{ scale: 0.96 }}
                                   onClick={() => requestUpdate(order.id, status)}
-                                  className={`px-4 py-2 rounded-full text-xs font-semibold tracking-wide ${
-                                    style === 'gold'    ? 'gold-btn text-black'    :
-                                    style === 'outline' ? 'outline-btn'            :
-                                                          'danger-btn'
-                                  }`}
+                                  className={`px-4 py-2 rounded-full text-xs font-semibold tracking-wide ${style === 'gold' ? 'gold-btn text-black' :
+                                      style === 'outline' ? 'outline-btn' :
+                                        'danger-btn'
+                                    }`}
                                 >
                                   {label}
                                 </motion.button>
@@ -396,6 +431,170 @@ export default function OrdersPage() {
               })}
             </motion.div>
           )}
+
+          {/* ── Served Orders Section ── */}
+          <motion.div
+            className="mt-20"
+            initial="hidden"
+            animate="show"
+            variants={{ show: { transition: { staggerChildren: 0.07 } } }}
+          >
+            {/* Section header */}
+            <motion.div variants={fadeUp} className="flex flex-col gap-3 mb-8">
+              <p className="text-[#d4a762] text-xs tracking-[0.25em] uppercase font-mono">History</p>
+              <div className="flex items-end justify-between gap-4">
+                <h2 className="text-white text-3xl sm:text-4xl font-serif leading-tight">Served Orders</h2>
+
+                {/* Timeframe input */}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-gray-600 text-xs tracking-widest uppercase">Last</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={timeframe}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '') {
+                        setTimeframe('');
+                        return;
+                      }
+                      if (/^[1-9]\d*$/.test(value)) {
+                        const num = Number(value);
+                        if (num > 1440) return;
+                        setTimeframe(num);
+                        fetchServedOrders(num);
+                      }
+                    }}
+                    className="w-16 bg-[#080603] border border-[#1e1508] text-[#d4a762] text-sm px-2 py-1 rounded-md focus:outline-none focus:border-[#c49a45] text-center font-mono"
+                  />
+                  <span className="text-gray-600 text-xs tracking-widest uppercase">min</span>
+                </div>
+              </div>
+              <div className="shimmer-bar h-px w-24 rounded-full" style={{
+                background: 'linear-gradient(90deg, #1e1508 0%, #c49a45 100%)',
+                animation: 'none'
+              }} />
+            </motion.div>
+
+            {/* Divider */}
+            <motion.div
+              className="w-full h-px mb-10"
+              style={{ background: 'linear-gradient(90deg, #1e1508 0%, #c49a45 100%)' }}
+              initial={{ scaleX: 0, originX: 1 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+            />
+
+            {/* Content */}
+            {servedLoading ? (
+              <div className="flex flex-col gap-4">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="rounded-2xl p-6 animate-pulse" style={{ background: '#080603', border: '1px solid #1e1508' }}>
+                    <div className="h-4 w-40 bg-[#1e1508] rounded mb-3" />
+                    <div className="h-3 w-64 bg-[#1e1508] rounded mb-2" />
+                    <div className="h-3 w-48 bg-[#1e1508] rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : servedError ? (
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center gap-3 py-16"
+              >
+                <p className="text-red-400/60 text-sm">{servedError}</p>
+              </motion.div>
+            ) : servedOrders.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center gap-3 py-16"
+              >
+                <div className="w-14 h-14 rounded-full border border-[#2a1e0a] flex items-center justify-center"
+                  style={{ background: 'radial-gradient(circle, rgba(52,211,153,0.06) 0%, transparent 70%)' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.4">
+                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+                    <rect x="9" y="3" width="6" height="4" rx="2" />
+                    <path d="M9 12l2 2 4-4" />
+                  </svg>
+                </div>
+                <p className="text-gray-600 text-sm">No served orders in this period.</p>
+              </motion.div>
+            ) : (
+              <motion.div
+                className="flex flex-col gap-4"
+                initial="hidden" animate="show"
+                variants={{ show: { transition: { staggerChildren: 0.07 } } }}
+              >
+                {servedOrders.map((order, idx) => (
+                  <motion.div
+                    key={order.id}
+                    custom={idx}
+                    variants={fadeUp}
+                    layout
+                    className="order-card rounded-2xl overflow-hidden"
+                    style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.4)', opacity: 0.85 }}
+                  >
+                    {/* Top accent bar — emerald tint for served */}
+                    <div className="h-px w-full" style={{
+                      background: 'linear-gradient(90deg, rgba(52,211,153,0.4), #1e1508)'
+                    }} />
+
+                    <div className="p-5 sm:p-6">
+
+                      {/* ── Card header ── */}
+                      <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-gray-300 text-sm font-mono tracking-widest">
+                              Table {order.table.tableNumber}
+                            </p>
+                            <span
+                              className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium text-emerald-400"
+                              style={{ background: 'rgba(52,211,153,0.08)' }}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              Served
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-gray-600 text-xs">
+                            <span>{formatDate(order.createdAt)}</span>
+                            <span>·</span>
+                            <span>{formatTime(order.createdAt)}</span>
+                          </div>
+                        </div>
+
+                        {/* Total */}
+                        <div className="text-right">
+                          <p className="text-emerald-400 text-xl font-serif">₹{order.totalPrice}</p>
+                          {order.payment && (
+                            <p className="text-gray-600 text-xs mt-0.5 uppercase tracking-widest">
+                              {order.payment.method} · {order.payment.status}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ── Items ── */}
+                      <div className="flex flex-col gap-1.5 pl-1 border-l border-[#1e1508]">
+                        {order.items.map((item) => (
+                          <div key={item.id} className="flex items-center justify-between px-3">
+                            <span className="text-gray-400 text-sm">
+                              {item.menuItem.name}
+                              <span className="text-gray-600 ml-2 text-xs">× {item.quantity}</span>
+                            </span>
+                            <span className="text-emerald-400/50 text-xs font-mono">
+                              ₹{item.priceAtTime * item.quantity}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </motion.div>
+
         </div>
       </div>
 
@@ -423,12 +622,12 @@ export default function OrdersPage() {
                 style={{ background: 'radial-gradient(circle, rgba(196,154,69,0.1) 0%, transparent 70%)' }}>
                 {confirm.newStatus === 'CANCELLED' ? (
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                    <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
                   </svg>
                 ) : (
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c49a45" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
-                    <path d="M9 12l2 2 4-4"/>
+                    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+                    <path d="M9 12l2 2 4-4" />
                   </svg>
                 )}
               </div>
@@ -459,15 +658,15 @@ export default function OrdersPage() {
                 <motion.button
                   whileTap={{ scale: 0.96 }}
                   onClick={confirmUpdate}
-                  className={`flex-1 py-3 rounded-full text-sm font-semibold ${
-                    confirm.newStatus === 'CANCELLED'
+                  className={`flex-1 py-3 rounded-full text-sm font-semibold ${confirm.newStatus === 'CANCELLED'
                       ? 'danger-btn'
                       : 'gold-btn text-black'
-                  }`}
+                    }`}
                 >
                   Confirm
                 </motion.button>
               </div>
+
             </motion.div>
           </motion.div>
         )}

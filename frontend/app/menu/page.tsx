@@ -1,5 +1,7 @@
 "use client";
 
+import { Suspense } from "react";
+
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Script from "next/script";
@@ -167,7 +169,7 @@ function CartBadge({ count, total, onClick }: { count: number; total: number; on
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export default function MenuPage() {
+function MenuPage() {
   const searchParams = useSearchParams();
   const tableIdFromQuery = searchParams.get("tableId");
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -179,25 +181,33 @@ export default function MenuPage() {
 
   // ── Session start — identical to original
   useEffect(() => {
-    const tableId = tableIdFromQuery ?? localStorage.getItem("tableId");
-    if (!tableId) { addToast("No table ID found. Please scan the QR again.", "error"); return; }
-    const startSession = async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/session/start`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tableId }),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json() as { id: string };
-        localStorage.setItem("sessionId", data.id);
-        localStorage.setItem("tableId", tableId);
-        sessionReadyRef.current = true;
-      } catch { addToast("Could not start session. Please rescan.", "error"); }
-    };
-    void startSession();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const tableId = tableIdFromQuery;
+
+  if (tableId === null) return;
+  if (!tableId || sessionReadyRef.current) return;
+
+  const startSession = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/session/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tableId }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json() as { id: string };
+      localStorage.setItem("sessionId", data.id);
+      sessionReadyRef.current = true;
+
+    } catch {
+      addToast("Could not start session. Please rescan.", "error");
+    }
+  };
+
+  void startSession();
+
+}, [tableIdFromQuery, addToast]);
 
   // ── Heartbeat — identical to original
   useEffect(() => {
@@ -254,23 +264,38 @@ export default function MenuPage() {
 
   // ── Checkout — identical to original
   const handleCheckout = async () => {
-    const { sessionId } = getSession();
-    if (!sessionId) { setModal({ type: "session_expired" }); return; }
-    try {
-      const res = await fetch(`${BASE_URL}/session/heartbeat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId }),
-      });
-      if (!res.ok) throw new Error("expired");
-    } catch { setModal({ type: "session_expired" }); return; }
-    setModal({ type: "payment_choice", pendingItem: cart[0] });
-  };
+  const tableId = tableIdFromQuery;
+
+  if (!tableId) {
+    addToast("Scan the QR code on your table before placing an order.", "error");
+    return;
+  }
+
+  const { sessionId } = getSession();
+  if (!sessionId) {
+    setModal({ type: "session_expired" });
+    return;
+  }
+
+  setModal({ type: "payment_choice", pendingItem: cart[0] });
+};
 
   // ── Place order — Razorpay logic copied verbatim from original
   const placeOrder = async (method: PaymentMethod) => {
-    const { sessionId, tableId } = getSession();
-    if (!sessionId || !tableId) { setModal({ type: "session_expired" }); return; }
+    const sessionId = localStorage.getItem("sessionId");
+const tableId = tableIdFromQuery;
+
+// block if no QR
+if (!tableId) {
+  addToast("Scan the QR code on your table before placing an order.", "error");
+  return;
+}
+
+// block if no session
+if (!sessionId) {
+  setModal({ type: "session_expired" });
+  return;
+}
     setModal({ type: "ordering", method });
     try {
       if (method === "OFFLINE") {
@@ -399,9 +424,6 @@ export default function MenuPage() {
         .cart-scroll::-webkit-scrollbar-thumb { background: #2a1e0a; border-radius: 99px; }
         .cart-scroll::-webkit-scrollbar-thumb:hover { background: #c49a45; }
       `}</style>
-
-      {/* Razorpay script — strategy="beforeInteractive" copied from original */}
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="beforeInteractive" />
 
       <div className="min-h-screen w-full bg-black pt-20">
 
@@ -820,5 +842,13 @@ export default function MenuPage() {
         </AnimatePresence>
       </div>
     </>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <MenuPage />
+    </Suspense>
   );
 }
