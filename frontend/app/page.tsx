@@ -3,10 +3,12 @@ import About from "./components/about";
 import Discover from "./components/discover";
 import Location from "./components/location";
 import FinalCTA from "./components/finalCTA";
+import Navbar from "./components/navbar";
 
 export default function Home() {
   return (
     <div className="gap-20 flex flex-col">
+      <Navbar/>
       <Hero/>
       <About/>
       <Discover/>

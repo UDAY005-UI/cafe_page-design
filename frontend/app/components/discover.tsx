@@ -1,3 +1,6 @@
+"use client";
+
+import { motion } from "framer-motion";
 import show1 from "../../public/show1.jpg";
 import show2 from "../../public/show2.jpg";
 import show3 from "../../public/show3.jpg";
@@ -25,7 +28,7 @@ const items = [
   },
   {
     img: show4,
-    tag: "Chef’s Pick",
+    tag: "Chef's Pick",
     name: "Choco Delight",
     desc: "Decadent, creamy, irresistible.",
   },
@@ -33,23 +36,39 @@ const items = [
 
 export default function Discover() {
   return (
-    <div id="discover" className="w-full px-30 py-24">
-      
-      <h1 className="text-center text-5xl font-serif text-white mb-16">
-        Caffiq Favorites
-      </h1>
+    <div id="discover" className="w-full px-6 sm:px-12 lg:px-24 xl:px-30 py-16 sm:py-20 lg:py-24">
 
-      <div className="flex gap-10 justify-center">
+      <motion.h1
+        className="text-center text-3xl sm:text-4xl lg:text-5xl font-serif text-white mb-10 sm:mb-12 lg:mb-16"
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        viewport={{ once: true }}
+      >
+        Caffiq Favorites
+      </motion.h1>
+
+      <div
+        className="
+          grid gap-6
+          grid-cols-1
+          sm:grid-cols-2
+          xl:grid-cols-4
+        "
+      >
         {items.map((item, index) => (
-          <div
+          <motion.div
             key={index}
             className="relative overflow-hidden rounded-3xl group"
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.15, duration: 0.6 }}
+            viewport={{ once: true }}
           >
-            
             <Image
               src={item.img}
               alt="coffee"
-              className="w-80 h-[500px] object-cover transition duration-500 group-hover:scale-105"
+              className="w-full h-105 sm:h-115 lg:h-125 object-cover transition duration-500 group-hover:scale-105"
             />
 
             <span className="
@@ -79,18 +98,21 @@ export default function Discover() {
                 {item.desc}
               </p>
 
-              <button className="
-                mt-2 w-full py-2 rounded-full
-                bg-[#c49a45]
-                text-black text-sm font-medium
-                hover:bg-[#d6aa5a]
-                transition-all duration-300
-              ">
+              <motion.button
+                className="
+                  mt-2 w-full py-2 rounded-full
+                  bg-[#c49a45]
+                  text-black text-sm font-medium
+                  hover:bg-[#d6aa5a]
+                  transition-all duration-300
+                "
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
                 Order Now →
-              </button>
+              </motion.button>
             </div>
-
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>
