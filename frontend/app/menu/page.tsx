@@ -670,26 +670,31 @@ function MenuPage() {
     if (stored) setCachedReceipt(stored);
   }, []);
 
-  // ── 1. Start session ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!tableId || sessionStartedRef.current) return;
-    sessionStartedRef.current = true;
-    const startSession = async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/session/start`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tableId }),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json() as { id: string };
-        setSessionId(data.id);
-      } catch {
-        addToast("Could not start session. Please rescan.", "error");
-      }
-    };
-    void startSession();
-  }, [tableId, addToast]);
+  // ── 1. Start session ─────────────────────────────────────────────────────────
+useEffect(() => {
+  if (!tableId || sessionStartedRef.current) return;
+  sessionStartedRef.current = true;
+
+  const startSession = async () => {
+    try {
+      // Always clear the old sessionId before starting a new one
+      localStorage.removeItem('sessionId');        // ← ADD THIS
+
+      const res = await fetch(`${BASE_URL}/session/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tableId }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as { id: string };
+      setSessionId(data.id);                       // sets the fresh one
+    } catch {
+      addToast('Could not start session. Please rescan.', 'error');
+    }
+  };
+
+  void startSession();
+}, [tableId, addToast]);
 
   // ── 2. Heartbeat ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1147,10 +1152,13 @@ function MenuPage() {
                   Your session has timed out. Please rescan the QR code on your table to continue.
                 </p>
               </div>
-              <motion.button whileTap={{ scale: 0.96 }} onClick={() => setModal({ type: "idle" })}
-                className="btn-gold w-full py-3 rounded-full text-sm font-semibold tracking-wide">
-                Understood
-              </motion.button>
+              <motion.button whileTap={{ scale: 0.96 }} onClick={() => {
+  localStorage.removeItem("sessionId");
+  setModal({ type: "idle" });
+}}
+  className="btn-gold w-full py-3 rounded-full text-sm font-semibold tracking-wide">
+  Understood
+</motion.button>
             </div>
           </Backdrop>
         )}
