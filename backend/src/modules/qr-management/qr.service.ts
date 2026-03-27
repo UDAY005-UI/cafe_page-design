@@ -33,7 +33,7 @@ export class QrService {
             data: { tableNumber },
           });
 
-          const url = `${process.env.FRONTEND_URL}/t/${table.id}`;
+          const url = `${process.env.FRONTEND_URL}/menu?tableId=${table.id}`;
 
           await tx.qR.create({
             data: {

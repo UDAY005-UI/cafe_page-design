@@ -31,7 +31,6 @@ export class QrController {
     res.send(qr);
   }
 
-  // ✅ GET /qr → return ALL QR images (as JSON base64)
   @Get()
   async getAllQr() {
     return this.qrService.getAllQrImages();
