@@ -7,7 +7,7 @@ import Navbar from "./components/navbar";
 
 export default function Home() {
   return (
-    <div className="gap-20 flex flex-col">
+    <div className="gap-20 flex flex-col overflow-x-hidden">
       <Navbar/>
       <Hero/>
       <About/>

@@ -1,8 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 export default function FinalCTA() {
+  const router = useRouter();
+
   return (
     <section className="w-full flex justify-center px-6 sm:px-12 pb-20 sm:pb-24 lg:pb-32">
 
@@ -46,6 +49,7 @@ export default function FinalCTA() {
         </motion.p>
 
         <motion.button
+        onClick={() => router.push("/menu")}
           className="
             mt-4 sm:mt-6 px-7 sm:px-8 py-3 sm:py-4 rounded-full
             bg-[#c49a45] text-black text-sm font-medium

@@ -154,7 +154,7 @@ export default function Hero() {
           }}
         />
 
-        {/* ══ DESKTOP (lg+) — unchanged ══ */}
+        {/* ══ DESKTOP (lg+) ══ */}
         <div className="hidden lg:flex relative z-10 w-full h-screen items-center">
 
           {/* Left: Text */}
@@ -205,9 +205,9 @@ export default function Hero() {
             className={`pre-anim hero-img absolute right-0 bottom-0 h-full flex items-end justify-end px-16 xl:px-24`}
             style={{
               background: `
-                radial-gradient(ellipse 28% 45% at 73% 15%, rgba(255,175,85,.32) 0%, transparent 100%),
-                radial-gradient(ellipse 35% 50% at 76% 52%, rgba(255,145,65,.34) 0%, transparent 100%),
-                radial-gradient(ellipse 20% 30% at 74% 70%, rgba(255,125,50,.24) 0%, transparent 100%),
+                radial-gradient(ellipse 28% 45% at 58% 15%, rgba(255,175,85,.32) 0%, transparent 100%),
+                radial-gradient(ellipse 35% 50% at 61% 52%, rgba(255,145,65,.34) 0%, transparent 100%),
+                radial-gradient(ellipse 20% 30% at 59% 70%, rgba(255,125,50,.24) 0%, transparent 100%),
                 linear-gradient(to bottom, rgba(0,0,0,0) 35%, rgba(0,0,0,.25) 65%, rgba(0,0,0,1) 95%),
                 linear-gradient(to right, #000 0%, #000 42%, transparent 100%)
               `
@@ -240,10 +240,8 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* ══ MOBILE / TABLET (below lg) ══
-            Order: label → heading → divider → body → CTA → stats → cup image
-        */}
-        <div className="flex lg:hidden flex-col relative z-10 w-full min-h-screen pt-28 pb-0 px-6 sm:px-10">
+        {/* ══ MOBILE / TABLET (below lg) ══ */}
+        <div className="flex lg:hidden flex-col relative z-10 w-full min-h-screen pt-28 pb-8 px-6 sm:px-10">
 
           {/* 1. Label */}
           <div className={`pre-anim hero-label flex items-center gap-3 mb-3`}>
@@ -271,17 +269,7 @@ export default function Hero() {
             coffee experience.
           </p>
 
-          {/* 5. CTA */}
-          <div className={`pre-anim hero-btn flex flex-wrap items-center gap-4 mt-5`}>
-            <Link href={'/menu'} className="btn-shimmer px-6 py-3 rounded-full text-black font-semibold text-sm tracking-wide">
-              Sip the Experience →
-            </Link>
-            <Link href={'/menu'} className="text-gray-400 text-sm hover:text-[#ffd28c] transition-colors underline underline-offset-4 decoration-[#ffd28c]/30">
-              View Our Menu
-            </Link>
-          </div>
-
-          {/* 6. Stats */}
+          {/* 5. Stats */}
           <div
             className={`pre-anim hero-badge flex gap-6 mt-6 pt-5 border-t border-white/10`}
             style={{ animationDelay: ".9s" }}
@@ -294,12 +282,11 @@ export default function Hero() {
             ))}
           </div>
 
-          {/* 7. Cup image — at the very bottom, edge to edge */}
+          {/* 6. Cup image */}
           <div
             className="relative flex justify-center items-end mt-8"
             style={{ marginLeft: "-1.5rem", marginRight: "-1.5rem", width: "calc(100% + 3rem)" }}
           >
-            {/* warm glow behind cup */}
             <div
               className="absolute inset-0 pointer-events-none"
               style={{
@@ -307,7 +294,6 @@ export default function Hero() {
                 filter: "blur(32px)",
               }}
             />
-            {/* steam */}
             <div className="steam-wrap" style={{ bottom: "72%", left: "50%", transform: "translateX(-40%)" }}>
               <div className="steam" />
               <div className="steam" style={{ animationDelay: ".7s" }} />
@@ -322,6 +308,16 @@ export default function Hero() {
                 priority
               />
             </div>
+          </div>
+
+          {/* 7. CTA — below the cup */}
+          <div className={`pre-anim hero-btn flex flex-wrap items-center justify-center gap-4 mt-20`}>
+            <Link href={'/menu'} className="btn-shimmer px-6 py-3 rounded-full text-black font-semibold text-sm tracking-wide">
+              Sip the Experience →
+            </Link>
+            <Link href={'/menu'} className="text-gray-400 text-sm hover:text-[#ffd28c] transition-colors underline underline-offset-4 decoration-[#ffd28c]/30">
+              View Our Menu
+            </Link>
           </div>
 
         </div>

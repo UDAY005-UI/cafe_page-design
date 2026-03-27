@@ -6,6 +6,7 @@ import show2 from "../../public/show2.jpg";
 import show3 from "../../public/show3.jpg";
 import show4 from "../../public/show4.jpg";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 const items = [
   {
@@ -35,6 +36,8 @@ const items = [
 ];
 
 export default function Discover() {
+  const router = useRouter();
+
   return (
     <div id="discover" className="w-full px-6 sm:px-12 lg:px-24 xl:px-30 py-16 sm:py-20 lg:py-24">
 
@@ -98,7 +101,7 @@ export default function Discover() {
                 {item.desc}
               </p>
 
-              <motion.button
+              <motion.button 
                 className="
                   mt-2 w-full py-2 rounded-full
                   bg-[#c49a45]
@@ -108,6 +111,7 @@ export default function Discover() {
                 "
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={() => router.push("/menu")}
               >
                 Order Now →
               </motion.button>

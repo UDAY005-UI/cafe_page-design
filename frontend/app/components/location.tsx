@@ -163,20 +163,6 @@ export default function Location() {
               <p className="text-white mb-1">Hours</p>
               <p>Mon – Sun • 8:00 AM – 9:00 PM</p>
             </div>
-
-            <motion.button
-              className="
-                mt-4 w-fit px-6 py-3 rounded-full
-                bg-[#c49a45] text-black text-sm font-medium
-                hover:bg-[#d6aa5a]
-                transition-all duration-300
-              "
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              Get Directions →
-            </motion.button>
-
           </div>
 
         </motion.div>

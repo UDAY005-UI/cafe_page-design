@@ -4,6 +4,7 @@ import Image from "next/image";
 import coffee from "../../public/coffee.jpg";
 import crossiant from "../../public/crossiant.jpg";
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 
 /* ─── Tiny hook: triggers CSS class when element enters viewport ─── */
 function useReveal<T extends HTMLElement>(threshold = 0.15) {
@@ -28,6 +29,8 @@ function useReveal<T extends HTMLElement>(threshold = 0.15) {
 }
 
 export default function About() {
+  const router = useRouter();
+
   const titleRef = useReveal<HTMLDivElement>(0.2);
   const row1TextRef = useReveal<HTMLDivElement>(0.2);
   const row1ImgRef = useReveal<HTMLDivElement>(0.2);
@@ -264,7 +267,7 @@ export default function About() {
                 indulgent.
               </p>
               <div className="d5">
-                <button className="cta-btn">Step Inside →</button>
+                <button onClick={() => router.push("/menu")} className="cta-btn">Step Inside →</button>
               </div>
             </div>
 
@@ -339,7 +342,7 @@ export default function About() {
                 a time.
               </p>
               <div className="d5">
-                <button className="cta-btn">Explore Further →</button>
+                <button onClick={() => router.push("/menu")} className="cta-btn">Explore Further →</button>
               </div>
             </div>
           </div>
