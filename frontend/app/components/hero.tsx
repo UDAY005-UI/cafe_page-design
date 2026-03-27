@@ -2,6 +2,7 @@
 import Image from "next/image";
 import coffee from "../../public/coffee4.png";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 export default function Hero() {
   const [mounted, setMounted] = useState(false);
@@ -272,12 +273,12 @@ export default function Hero() {
 
           {/* 5. CTA */}
           <div className={`pre-anim hero-btn flex flex-wrap items-center gap-4 mt-5`}>
-            <button className="btn-shimmer px-6 py-3 rounded-full text-black font-semibold text-sm tracking-wide">
+            <Link href={'/menu'} className="btn-shimmer px-6 py-3 rounded-full text-black font-semibold text-sm tracking-wide">
               Sip the Experience →
-            </button>
-            <button className="text-gray-400 text-sm hover:text-[#ffd28c] transition-colors underline underline-offset-4 decoration-[#ffd28c]/30">
+            </Link>
+            <Link href={'/menu'} className="text-gray-400 text-sm hover:text-[#ffd28c] transition-colors underline underline-offset-4 decoration-[#ffd28c]/30">
               View Our Menu
-            </button>
+            </Link>
           </div>
 
           {/* 6. Stats */}
