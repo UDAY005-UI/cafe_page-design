@@ -9,14 +9,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OrderGateway } from './orders.gateway';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { ORDER_QUEUE, CreateOrderJobData } from './order.processor';
-import { OrderQueueEventsService } from './order-queue-events.service';
 
 @Injectable()
 export class OrderService {
   constructor(
     private prisma: PrismaService,
     private gateway: OrderGateway,
-    private queueEvents: OrderQueueEventsService, // ✅ injected singleton
     @InjectQueue(ORDER_QUEUE) private orderQueue: Queue,
   ) {}
 
@@ -59,13 +57,41 @@ export class OrderService {
       },
     );
 
-    // ── 3. Wait for result (using shared QueueEvents) ─────────────────────
-    const result = await job.waitUntilFinished(this.queueEvents.events);
+    // ── 3. Poll for result instead of waitUntilFinished ──────────────────
+    const result = await this.pollJobResult(job.id!);
 
     return {
       message: 'Order received.',
       orderId: result.orderId,
     };
+  }
+
+  private async pollJobResult(
+    jobId: string,
+    timeoutMs = 15000,
+    intervalMs = 300,
+  ): Promise<{ orderId: string }> {
+    const deadline = Date.now() + timeoutMs;
+
+    while (Date.now() < deadline) {
+      const job = await this.orderQueue.getJob(jobId);
+
+      if (!job) throw new Error('JOB_NOT_FOUND');
+
+      const state = await job.getState();
+
+      if (state === 'completed') {
+        return job.returnvalue as { orderId: string };
+      }
+
+      if (state === 'failed') {
+        throw new Error(job.failedReason ?? 'JOB_FAILED');
+      }
+
+      await new Promise((res) => setTimeout(res, intervalMs));
+    }
+
+    throw new Error('JOB_TIMEOUT');
   }
 
   async getOrdersBySession(sessionId: string) {

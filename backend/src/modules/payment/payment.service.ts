@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
-import { Queue, QueueEvents } from 'bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import Razorpay from 'razorpay';
 import * as crypto from 'crypto';
@@ -9,7 +9,6 @@ import { ORDER_QUEUE, CreateOrderJobData } from '../order/order.processor';
 @Injectable()
 export class PaymentService {
   private razorpay: Razorpay;
-  private queueEvents: QueueEvents;
 
   constructor(
     private prisma: PrismaService,
@@ -19,13 +18,7 @@ export class PaymentService {
       key_id: process.env.RAZORPAY_KEY_ID!,
       key_secret: process.env.RAZORPAY_KEY_SECRET!,
     });
-
-    this.queueEvents = new QueueEvents(ORDER_QUEUE, {
-      connection: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: Number(process.env.REDIS_PORT) || 6379,
-      },
-    });
+    // ✅ No QueueEvents here — was the root cause of the hanging requests
   }
 
   // ── ONLINE STEP 1 ────────────────────────────────────────────────────────
@@ -86,7 +79,7 @@ export class PaymentService {
       throw new BadRequestException('SESSION_EXPIRED_AFTER_PAYMENT');
     }
 
-    // ── 3. Push job and wait for result ───────────────────────────────────
+    // ── 3. Push job ───────────────────────────────────────────────────────
     const job = await this.orderQueue.add(
       'create-order',
       {
@@ -103,11 +96,40 @@ export class PaymentService {
       },
     );
 
-    const result = await job.waitUntilFinished(this.queueEvents);
+    // ── 4. Poll for result instead of waitUntilFinished ───────────────────
+    const result = await this.pollJobResult(job.id!);
 
     return {
       message: 'Payment verified. Order placed.',
       orderId: result.orderId,
     };
+  }
+
+  private async pollJobResult(
+    jobId: string,
+    timeoutMs = 15000,
+    intervalMs = 300,
+  ): Promise<{ orderId: string }> {
+    const deadline = Date.now() + timeoutMs;
+
+    while (Date.now() < deadline) {
+      const job = await this.orderQueue.getJob(jobId);
+
+      if (!job) throw new Error('JOB_NOT_FOUND');
+
+      const state = await job.getState();
+
+      if (state === 'completed') {
+        return job.returnvalue as { orderId: string };
+      }
+
+      if (state === 'failed') {
+        throw new Error(job.failedReason ?? 'JOB_FAILED');
+      }
+
+      await new Promise((res) => setTimeout(res, intervalMs));
+    }
+
+    throw new Error('JOB_TIMEOUT');
   }
 }

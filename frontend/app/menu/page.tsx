@@ -185,13 +185,11 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   const ctx = canvas.getContext("2d")!;
   ctx.scale(DPR, DPR);
 
-  // Dark background
   const cardGrad = ctx.createLinearGradient(0, 0, 0, H);
   cardGrad.addColorStop(0, "#0f0b05");
   cardGrad.addColorStop(1, "#080603");
   roundRect(ctx, 0, 0, W, H, 20, cardGrad);
 
-  // Top gold bar
   const barGrad = ctx.createLinearGradient(0, 0, W, 0);
   barGrad.addColorStop(0, "#c49a45");
   barGrad.addColorStop(0.5, "#e8c06a");
@@ -201,7 +199,6 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
 
   let y = 42;
 
-  // ── Café name — bright gold, clearly visible ──
   ctx.font = "bold 30px Georgia, serif";
   ctx.fillStyle = "#f5d878";
   ctx.textAlign = "center";
@@ -216,13 +213,11 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   drawDashedLine(ctx, PADDING, y, W - PADDING, y, "#4a3820");
   y += 18;
 
-  // RECEIPT label
   ctx.font = "10px 'Courier New', monospace";
   ctx.fillStyle = "#b08848";
   ctx.fillText("— PAYMENT RECEIPT —", W / 2, y);
   y += 26;
 
-  // ── Meta rows — labels mid-tone, values bright ──
   const metaRows: [string, string, string][] = [
     ["Order Ref",   `#${data.orderId.slice(-8).toUpperCase()}`,  "#f0d070"],
     ["Table",       `Table ${data.tableId.slice(-4).toUpperCase()}`, "#f0d070"],
@@ -235,11 +230,11 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   for (const [label, value, valueColor] of metaRows) {
     ctx.textAlign = "left";
     ctx.font = "11px 'Courier New', monospace";
-    ctx.fillStyle = "#a08850";        // label — warm readable mid-tone
+    ctx.fillStyle = "#a08850";
     ctx.fillText(label, PADDING, y);
 
     ctx.textAlign = "right";
-    ctx.fillStyle = valueColor;       // value — bright per type
+    ctx.fillStyle = valueColor;
     ctx.fillText(value, W - PADDING, y);
     y += 20;
   }
@@ -248,7 +243,6 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   drawDashedLine(ctx, PADDING, y, W - PADDING, y, "#4a3820");
   y += 18;
 
-  // ── Column headers — visible but dimmer than item rows ──
   ctx.textAlign = "left";
   ctx.font = "bold 10px 'Courier New', monospace";
   ctx.fillStyle = "#907848";
@@ -262,30 +256,25 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   drawDashedLine(ctx, PADDING, y, W - PADDING, y, "#382e10");
   y += 16;
 
-  // ── Items ──
   for (const item of data.items) {
     const lineTotal = item.price * item.quantity;
 
-    // Item name — brightest text on the receipt
     ctx.textAlign = "left";
     ctx.font = "13px Georgia, serif";
     ctx.fillStyle = "#f0e0b0";
     const truncName = truncateText(ctx, item.name, INNER * 0.55);
     ctx.fillText(truncName, PADDING, y);
 
-    // Quantity
     ctx.textAlign = "center";
     ctx.font = "11px 'Courier New', monospace";
     ctx.fillStyle = "#c09850";
     ctx.fillText(`× ${item.quantity}`, W / 2 - 10, y);
 
-    // Line total — bright gold
     ctx.textAlign = "right";
     ctx.font = "13px 'Courier New', monospace";
     ctx.fillStyle = "#f5c840";
     ctx.fillText(`₹${lineTotal.toFixed(2)}`, W - PADDING, y);
 
-    // Unit price hint — subtle but not invisible
     if (item.quantity > 1) {
       ctx.textAlign = "right";
       ctx.font = "9px 'Courier New', monospace";
@@ -301,7 +290,6 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   drawDashedLine(ctx, PADDING, y, W - PADDING, y, "#4a3820");
   y += 20;
 
-  // ── Subtotal ──
   ctx.textAlign = "left";
   ctx.font = "11px 'Courier New', monospace";
   ctx.fillStyle = "#a08850";
@@ -311,7 +299,6 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   ctx.fillText(`₹${data.total.toFixed(2)}`, W - PADDING, y);
   y += 20;
 
-  // Taxes
   ctx.textAlign = "left";
   ctx.font = "10px 'Courier New', monospace";
   ctx.fillStyle = "#806840";
@@ -321,7 +308,6 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   ctx.fillText("Included", W - PADDING, y);
   y += 22;
 
-  // ── TOTAL box — most prominent element ──
   const totalBoxY = y - 4;
   const totalBoxH = 44;
   const totalBoxGrad = ctx.createLinearGradient(PADDING, 0, W - PADDING, 0);
@@ -336,11 +322,10 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
 
   ctx.textAlign = "right";
   ctx.font = "bold 22px Georgia, serif";
-  ctx.fillStyle = "#ffe878";          // brightest element on receipt
+  ctx.fillStyle = "#ffe878";
   ctx.fillText(`₹${data.total.toFixed(2)}`, W - PADDING - 14, y + 23);
   y += totalBoxH + 22;
 
-  // ── Payment IDs ──
   drawDashedLine(ctx, PADDING, y, W - PADDING, y, "#382e10");
   y += 16;
 
@@ -351,12 +336,12 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   for (const [label, value] of idRows) {
     ctx.textAlign = "left";
     ctx.font = "9px 'Courier New', monospace";
-    ctx.fillStyle = "#806840";        // label dim
+    ctx.fillStyle = "#806840";
     ctx.fillText(label, PADDING, y);
     y += 13;
 
     ctx.font = "10px 'Courier New', monospace";
-    ctx.fillStyle = "#c09050";        // value — readable warm gold
+    ctx.fillStyle = "#c09050";
     ctx.fillText(value, PADDING, y);
     y += 18;
   }
@@ -365,7 +350,6 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   drawDashedLine(ctx, PADDING, y, W - PADDING, y, "#382e10");
   y += 22;
 
-  // ── Footer ──
   ctx.textAlign = "center";
   ctx.font = "italic 12px Georgia, serif";
   ctx.fillStyle = "#a08050";
@@ -497,9 +481,7 @@ function CartBadge({ count, total, onClick }: { count: number; total: number; on
   );
 }
 
-// ─── Receipt Banner — fixed bottom strip ─────────────────────────────────────
-// Replaces the old top-right floating button. Sits at the very bottom of the
-// viewport, below the cart badge (z-30 < z-40). Slides up from bottom.
+// ─── Receipt Banner ───────────────────────────────────────────────────────────
 function ReceiptBanner({ onClick }: { onClick: () => void }) {
   return (
     <motion.div
@@ -552,8 +534,6 @@ function ReceiptBanner({ onClick }: { onClick: () => void }) {
 }
 
 // ─── Receipt Modal content ────────────────────────────────────────────────────
-// FIX: This component renders the card content only.
-// The Backdrop is applied exactly once at the call site in AnimatePresence.
 function ReceiptModalContent({
   imageBase64,
   receiptData,
@@ -578,7 +558,6 @@ function ReceiptModalContent({
 
   return (
     <div className="rounded-2xl flex flex-col overflow-hidden" style={{ ...card, maxHeight: "88vh" }}>
-      {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#1e1508] shrink-0">
         <div className="flex flex-col gap-0.5">
           <p className="text-[#d4a762] text-xs tracking-[0.22em] uppercase font-mono">Payment Confirmed</p>
@@ -595,7 +574,6 @@ function ReceiptModalContent({
         </motion.button>
       </div>
 
-      {/* Scrollable receipt image */}
       <div
         className="flex-1 overflow-y-auto min-h-0 px-4 py-4"
         style={{ scrollbarWidth: "thin", scrollbarColor: "#2a1e0a transparent" }}
@@ -608,7 +586,6 @@ function ReceiptModalContent({
         />
       </div>
 
-      {/* Footer actions */}
       <div className="shrink-0 px-5 pb-5 pt-4 border-t border-[#1e1508] flex flex-col gap-3 bg-[#080603]">
         <div
           className="flex items-center gap-2 px-3 py-2 rounded-lg"
@@ -670,33 +647,32 @@ function MenuPage() {
     if (stored) setCachedReceipt(stored);
   }, []);
 
-  // ── 1. Start session ─────────────────────────────────────────────────────────
-useEffect(() => {
-  if (!tableId || sessionStartedRef.current) return;
-  sessionStartedRef.current = true;
+  // ── 1. Start session ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!tableId || sessionStartedRef.current) return;
+    sessionStartedRef.current = true;
 
-  const startSession = async () => {
-    try {
-      // Always clear the old sessionId before starting a new one
-      localStorage.removeItem('sessionId');        // ← ADD THIS
+    const startSession = async () => {
+      try {
+        localStorage.removeItem("sessionId");
 
-      const res = await fetch(`${BASE_URL}/session/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tableId }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json() as { id: string };
-      setSessionId(data.id);                       // sets the fresh one
-    } catch {
-      addToast('Could not start session. Please rescan.', 'error');
-    }
-  };
+        const res = await fetch(`${BASE_URL}/session/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tableId }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json() as { id: string };
+        setSessionId(data.id);
+      } catch {
+        addToast("Could not start session. Please rescan.", "error");
+      }
+    };
 
-  void startSession();
-}, [tableId, addToast]);
+    void startSession();
+  }, [tableId, addToast]);
 
-  // ── 2. Heartbeat ────────────────────────────────────────────────────────────
+  // ── 2. Heartbeat ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!tableId) return;
     const interval = setInterval(async () => {
@@ -713,7 +689,7 @@ useEffect(() => {
     return () => clearInterval(interval);
   }, [tableId]);
 
-  // ── 3. Fetch menu ───────────────────────────────────────────────────────────
+  // ── 3. Fetch menu ─────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchMenu = async () => {
       setLoadingMenu(true);
@@ -763,7 +739,7 @@ useEffect(() => {
     setModal({ type: "payment_choice" });
   };
 
-  // ── Generate + cache receipt ─────────────────────────────────────────────
+  // ── Generate + cache receipt ───────────────────────────────────────────────
   const generateAndCacheReceipt = useCallback(async (receiptData: ReceiptData) => {
     try {
       const imageBase64 = await generateReceiptImage(receiptData);
@@ -781,7 +757,7 @@ useEffect(() => {
     }
   }, [addToast]);
 
-  // ── Place order ──────────────────────────────────────────────────────────
+  // ── Place order ────────────────────────────────────────────────────────────
   const placeOrder = async (method: PaymentMethod) => {
     const sessionId = getSessionId();
     if (!sessionId) { setModal({ type: "session_expired" }); return; }
@@ -804,13 +780,14 @@ useEffect(() => {
           if (err.message === "SESSION_EXPIRED") { setModal({ type: "session_expired" }); return; }
           throw new Error(err.message ?? "Order failed");
         }
-        const order = await res.json() as { id: string };
+        // ✅ FIXED: backend returns { message, orderId } not { id }
+        const order = await res.json() as { orderId: string };
         setCart([]);
-        setModal({ type: "success", method: "OFFLINE", orderId: order.id });
+        setModal({ type: "success", method: "OFFLINE", orderId: order.orderId });
         return;
       }
 
-      // ── ONLINE: Razorpay ────────────────────────────────────────────────
+      // ── ONLINE: Razorpay ──────────────────────────────────────────────────
       const payRes = await fetch(`${BASE_URL}/payments/create-razorpay-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -850,7 +827,6 @@ useEffect(() => {
 
             if (!verifyRes.ok) {
               const err = await verifyRes.json() as { message?: string };
-              // PENDING receipt even on verify failure — proof of payment for staff
               const receiptData: ReceiptData = {
                 orderId: response.razorpay_order_id,
                 tableId: tableId ?? "unknown",
@@ -872,6 +848,7 @@ useEffect(() => {
               return;
             }
 
+            // ✅ FIXED: backend returns { message, orderId } — read orderId correctly
             const data = await verifyRes.json() as { orderId: string };
             const receiptData: ReceiptData = {
               orderId: data.orderId,
@@ -881,7 +858,7 @@ useEffect(() => {
               items: cartForReceipt,
               total: totalSnapshot,
               paidAt: new Date().toISOString(),
-              paymentStatus: "SUCCESS",
+              paymentStatus: "SUCCESS",  // ✅ FIXED: only set SUCCESS when verifyRes.ok is true
             };
 
             const result = await generateAndCacheReceipt(receiptData);
@@ -926,7 +903,6 @@ useEffect(() => {
     boxShadow: "0 24px 64px rgba(0,0,0,0.85), 0 0 0 1px rgba(196,154,69,0.06)",
   };
 
-  // Banner visible when there's a cached receipt AND no modal open
   const showReceiptBanner = !!cachedReceipt && modal.type === "idle";
 
   return (
@@ -968,7 +944,6 @@ useEffect(() => {
         .cart-scroll::-webkit-scrollbar-thumb:hover { background: #c49a45; }
       `}</style>
 
-      {/* Extra padding at bottom when banner is visible so content isn't hidden */}
       <div className="min-h-screen w-full bg-black pt-20" style={{ paddingBottom: showReceiptBanner ? "64px" : "0" }}>
         <div className="max-w-7xl mx-auto px-6 sm:px-12 lg:px-24 xl:px-30">
 
@@ -1116,7 +1091,7 @@ useEffect(() => {
         <div className="h-28" />
       </div>
 
-      {/* ── Receipt banner (bottom strip, z-30) ── */}
+      {/* ── Receipt banner ── */}
       <AnimatePresence>
         {showReceiptBanner && (
           <ReceiptBanner
@@ -1131,7 +1106,7 @@ useEffect(() => {
         )}
       </AnimatePresence>
 
-      {/* ── Cart badge (z-40, sits above banner) ── */}
+      {/* ── Cart badge ── */}
       <CartBadge count={cartCount} total={cartTotal} onClick={() => setModal({ type: "cart" })} />
 
       {/* ══ MODALS ══ */}
@@ -1153,12 +1128,12 @@ useEffect(() => {
                 </p>
               </div>
               <motion.button whileTap={{ scale: 0.96 }} onClick={() => {
-  localStorage.removeItem("sessionId");
-  setModal({ type: "idle" });
-}}
-  className="btn-gold w-full py-3 rounded-full text-sm font-semibold tracking-wide">
-  Understood
-</motion.button>
+                localStorage.removeItem("sessionId");
+                setModal({ type: "idle" });
+              }}
+                className="btn-gold w-full py-3 rounded-full text-sm font-semibold tracking-wide">
+                Understood
+              </motion.button>
             </div>
           </Backdrop>
         )}
@@ -1336,7 +1311,6 @@ useEffect(() => {
           </Backdrop>
         )}
 
-        {/* ── Receipt — single Backdrop, ReceiptModalContent inside ── */}
         {modal.type === "receipt" && (
           <Backdrop key="receipt" onClose={() => setModal({ type: "idle" })} wide>
             <ReceiptModalContent
