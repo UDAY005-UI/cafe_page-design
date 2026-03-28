@@ -19,7 +19,6 @@ import { IdempotencyInterceptor } from './common/interceptors/idempotency.interc
       envFilePath: '.env',
     }),
 
-    // ✅ Proper Redis connection for BullMQ
     (() => {
       const redisUrl = process.env.REDIS_PUBLIC_URL;
 

@@ -16,9 +16,14 @@ export class IdempotencyInterceptor implements NestInterceptor {
   private redis: Redis;
 
   constructor() {
-    this.redis = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: Number(process.env.REDIS_PORT) || 6379,
+    const redisUrl = process.env.REDIS_PUBLIC_URL;
+
+    if (!redisUrl) {
+      throw new Error('REDIS_PUBLIC_URL not set');
+    }
+
+    this.redis = new Redis(redisUrl, {
+      maxRetriesPerRequest: null,
     });
   }
 
