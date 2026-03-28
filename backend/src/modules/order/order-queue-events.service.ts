@@ -1,5 +1,6 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { QueueEvents } from 'bullmq';
+import IORedis from 'ioredis';
 
 @Injectable()
 export class OrderQueueEventsService implements OnModuleDestroy, OnModuleInit {
@@ -9,23 +10,25 @@ export class OrderQueueEventsService implements OnModuleDestroy, OnModuleInit {
     const redisUrl = process.env.REDIS_PUBLIC_URL;
 
     if (!redisUrl) {
-      throw new Error('REDIS_URL not set');
+      throw new Error('REDIS_PUBLIC_URL not set');
     }
 
-    this.events = new QueueEvents('order-queue', {
-      connection: {
-        url: redisUrl,
-        maxRetriesPerRequest: null, // 🔥 IMPORTANT
-      },
+    const connection = new IORedis(redisUrl, {
+      maxRetriesPerRequest: null, // required for BullMQ
     });
 
-    // 🔥 THIS IS THE ACTUAL FIX
+    this.events = new QueueEvents('order-queue', {
+      connection, // ✅ type-safe + correct
+    });
+
     await this.events.waitUntilReady();
 
     console.log('QueueEvents ready');
   }
 
   async onModuleDestroy() {
-    await this.events?.close();
+    if (this.events) {
+      await this.events.close();
+    }
   }
 }
