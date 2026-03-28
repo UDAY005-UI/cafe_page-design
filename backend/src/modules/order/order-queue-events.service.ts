@@ -15,6 +15,7 @@ export class OrderQueueEventsService implements OnModuleDestroy {
     this.events = new QueueEvents('order-queue', {
       connection: {
         url: redisUrl,
+        tls: {},
       },
     });
   }
