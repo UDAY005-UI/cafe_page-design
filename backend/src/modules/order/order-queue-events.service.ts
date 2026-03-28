@@ -12,7 +12,7 @@ export class OrderQueueEventsService implements OnModuleDestroy {
 
     this.events = new QueueEvents('order-queue', {
       connection: {
-        host: process.env.REDIS_HOST,
+        host: process.env.REDIS_HOST || '127.0.0.1',
         port: Number(process.env.REDIS_PORT),
       },
     });
