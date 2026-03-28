@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import IORedis from 'ioredis';
+
 import { QrModule } from './modules/qr-management/qr.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { MenuModule } from './modules/menu/menu.module';
@@ -7,8 +11,6 @@ import { PaymentModule } from './modules/payment/payment.module';
 import { SessionModule } from './modules/session/session.module';
 import { OrderModule } from './modules/order/order.module';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
-import { APP_INTERCEPTOR } from '@nestjs/core';
-import { BullModule } from '@nestjs/bullmq';
 
 @Module({
   imports: [
@@ -16,12 +18,22 @@ import { BullModule } from '@nestjs/bullmq';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    BullModule.forRoot({
-      connection: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: Number(process.env.REDIS_PORT) || 6379,
-      },
-    }),
+
+    // ✅ Proper Redis connection for BullMQ
+    (() => {
+      const redisUrl = process.env.REDIS_PUBLIC_URL;
+
+      if (!redisUrl) {
+        throw new Error('REDIS_PUBLIC_URL not set');
+      }
+
+      return BullModule.forRoot({
+        connection: new IORedis(redisUrl, {
+          maxRetriesPerRequest: null,
+        }),
+      });
+    })(),
+
     QrModule,
     PrismaModule,
     MenuModule,
