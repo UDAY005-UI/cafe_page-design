@@ -4,28 +4,21 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
-import { Queue, QueueEvents } from 'bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderGateway } from './orders.gateway';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { ORDER_QUEUE, CreateOrderJobData } from './order.processor';
+import { OrderQueueEventsService } from './order-queue-events.service';
 
 @Injectable()
 export class OrderService {
-  private queueEvents: QueueEvents;
-
   constructor(
     private prisma: PrismaService,
     private gateway: OrderGateway,
+    private queueEvents: OrderQueueEventsService, // ✅ injected singleton
     @InjectQueue(ORDER_QUEUE) private orderQueue: Queue,
-  ) {
-    this.queueEvents = new QueueEvents(ORDER_QUEUE, {
-      connection: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: Number(process.env.REDIS_PORT) || 6379,
-      },
-    });
-  }
+  ) {}
 
   private nowIST(): Date {
     return new Date(Date.now() + 5.5 * 60 * 60 * 1000);
@@ -41,7 +34,7 @@ export class OrderService {
   async createOrder(dto: CreateOrderDto) {
     const { sessionId, tableId, items } = dto;
 
-    // ── 1. Validate session is active ────────────────────────────────────
+    // ── 1. Validate session ──────────────────────────────────────────────
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
     });
@@ -50,7 +43,7 @@ export class OrderService {
       throw new BadRequestException('SESSION_EXPIRED');
     }
 
-    // ── 2. Push job and wait for result ──────────────────────────────────
+    // ── 2. Push job ──────────────────────────────────────────────────────
     const job = await this.orderQueue.add(
       'create-order',
       {
@@ -66,7 +59,8 @@ export class OrderService {
       },
     );
 
-    const result = await job.waitUntilFinished(this.queueEvents);
+    // ── 3. Wait for result (using shared QueueEvents) ─────────────────────
+    const result = await job.waitUntilFinished(this.queueEvents.events);
 
     return {
       message: 'Order received.',
@@ -90,6 +84,7 @@ export class OrderService {
     status: 'PREPARING' | 'SERVED' | 'CANCELLED',
   ) {
     const allowedStatuses = ['PREPARING', 'SERVED', 'CANCELLED'];
+
     if (!allowedStatuses.includes(status)) {
       throw new BadRequestException('INVALID_STATUS');
     }
@@ -115,6 +110,7 @@ export class OrderService {
     });
 
     this.gateway.emitOrderUpdated(updated);
+
     return updated;
   }
 
@@ -132,6 +128,7 @@ export class OrderService {
 
   async getServedOrdersWithin(minutes: number) {
     const fromTime = new Date(Date.now() - minutes * 60 * 1000);
+
     return this.prisma.order.findMany({
       where: { status: 'SERVED', updatedAt: { gte: fromTime } },
       include: {
