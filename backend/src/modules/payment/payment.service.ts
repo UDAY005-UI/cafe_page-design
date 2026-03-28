@@ -1,33 +1,41 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue, QueueEvents } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import Razorpay from 'razorpay';
 import * as crypto from 'crypto';
+import { ORDER_QUEUE, CreateOrderJobData } from '../order/order.processor';
 
 @Injectable()
 export class PaymentService {
   private razorpay: Razorpay;
+  private queueEvents: QueueEvents;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    @InjectQueue(ORDER_QUEUE) private orderQueue: Queue,
+  ) {
     this.razorpay = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID!,
       key_secret: process.env.RAZORPAY_KEY_SECRET!,
     });
+
+    this.queueEvents = new QueueEvents(ORDER_QUEUE, {
+      connection: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: Number(process.env.REDIS_PORT) || 6379,
+      },
+    });
   }
 
   // ── ONLINE STEP 1 ────────────────────────────────────────────────────────
-  // Creates a Razorpay order for the given cart total.
-  // No DB write — purely a handshake with Razorpay to get an order_id.
   async createRazorpayOrder(amount: number) {
     if (!amount || amount <= 0) {
       throw new BadRequestException('Invalid amount');
     }
 
     const razorpayOrder = await this.razorpay.orders.create({
-      amount: Math.round(amount * 100), // ₹ → paise
+      amount: Math.round(amount * 100),
       currency: 'INR',
       receipt: `receipt_${Date.now()}`,
     });
@@ -41,9 +49,6 @@ export class PaymentService {
   }
 
   // ── ONLINE STEP 2 ────────────────────────────────────────────────────────
-  // Called only after Razorpay confirms payment.
-  // Verifies HMAC signature, then atomically creates DB order + payment.
-  // Order is created directly with status PREPARING since payment is done.
   async verifyAndCreateOrder(data: {
     razorpay_order_id: string;
     razorpay_payment_id: string;
@@ -61,7 +66,7 @@ export class PaymentService {
       items,
     } = data;
 
-    // ── 1. Verify Razorpay HMAC signature ──────────────────────────────────
+    // ── 1. Verify HMAC signature ──────────────────────────────────────────
     const body = `${razorpay_order_id}|${razorpay_payment_id}`;
     const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
@@ -72,73 +77,37 @@ export class PaymentService {
       throw new BadRequestException('Payment verification failed');
     }
 
-    // ── 2. Validate session ────────────────────────────────────────────────
+    // ── 2. Validate session ───────────────────────────────────────────────
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
     });
 
     if (!session || !session.isActive) {
-      // Money was charged but session expired — staff must reconcile
       throw new BadRequestException('SESSION_EXPIRED_AFTER_PAYMENT');
     }
 
-    // ── 3. Validate menu items ─────────────────────────────────────────────
-    const menuItemIds = items.map((i) => i.menuItemId);
-
-    const menuItems = await this.prisma.menuItem.findMany({
-      where: { id: { in: menuItemIds }, isAvailable: true },
-    });
-
-    if (menuItems.length !== menuItemIds.length) {
-      throw new NotFoundException('ITEMS_CHANGED_AFTER_PAYMENT');
-    }
-
-    // ── 4. Build price map + total from server-side prices ─────────────────
-    // Never trust client-sent prices — always recompute from DB
-    const priceMap = new Map(menuItems.map((m) => [m.id, m.price]));
-    const totalPrice = items.reduce((sum, item) => {
-      return sum + (priceMap.get(item.menuItemId) ?? 0) * item.quantity;
-    }, 0);
-
-    // ── 5. Atomically create order + payment record ────────────────────────
-    const order = await this.prisma.order.create({
-      data: {
+    // ── 3. Push job and wait for result ───────────────────────────────────
+    const job = await this.orderQueue.add(
+      'create-order',
+      {
         tableId,
         sessionId,
-        totalPrice,
-        status: 'PREPARING', // payment already confirmed, skip PLACED
-        items: {
-          create: items.map((item) => ({
-            menuItemId: item.menuItemId,
-            quantity: item.quantity,
-            priceAtTime: priceMap.get(item.menuItemId) ?? 0,
-          })),
-        },
-        payment: {
-          create: {
-            method: 'ONLINE',
-            status: 'SUCCESS',
-            amount: totalPrice,
-            provider: 'razorpay',
-            reference: razorpay_payment_id,
-          },
-        },
+        items,
+        paymentMethod: 'ONLINE',
+        razorpay_payment_id,
+      } satisfies CreateOrderJobData,
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+        jobId: `online:${razorpay_payment_id}`,
       },
-      include: {
-        items: { include: { menuItem: true } },
-        payment: true,
-      },
-    });
+    );
 
-    // ── 6. Touch session ───────────────────────────────────────────────────
-    await this.prisma.session.update({
-      where: { id: sessionId },
-      data: { lastActivityAt: new Date() },
-    });
+    const result = await job.waitUntilFinished(this.queueEvents);
 
     return {
       message: 'Payment verified. Order placed.',
-      orderId: order.id,
+      orderId: result.orderId,
     };
   }
 }
