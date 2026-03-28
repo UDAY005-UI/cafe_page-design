@@ -19,7 +19,7 @@ async function bootstrap() {
     }),
   );
 
-  const port = process.env.PORT ?? 5500;
+  const port = Number(process.env.PORT) || 5500;
 
   await app.listen(port);
 
