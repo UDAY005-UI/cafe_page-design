@@ -6,19 +6,22 @@ export class OrderQueueEventsService implements OnModuleDestroy {
   public readonly events: QueueEvents;
 
   constructor() {
-    if (!process.env.REDIS_HOST) {
-      throw new Error('REDIS_HOST not set');
+    const redisUrl =
+      process.env.REDIS_URL ||
+      (process.env.NODE_ENV !== 'production' ? 'redis://127.0.0.1:6379' : null);
+
+    if (!redisUrl) {
+      throw new Error('REDIS_URL not set');
     }
 
     this.events = new QueueEvents('order-queue', {
       connection: {
-        host: process.env.REDIS_HOST || '127.0.0.1',
-        port: Number(process.env.REDIS_PORT),
+        url: redisUrl,
       },
     });
   }
 
   async onModuleDestroy() {
-    await this.events.close(); // important cleanup
+    await this.events.close();
   }
 }
