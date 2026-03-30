@@ -2,7 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { APP_INTERCEPTOR } from '@nestjs/core';
-import IORedis from 'ioredis';
+
+import { redisClient } from './common/redis/redis.client';
 
 import { QrModule } from './modules/qr-management/qr.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
@@ -19,19 +20,9 @@ import { IdempotencyInterceptor } from './common/interceptors/idempotency.interc
       envFilePath: '.env',
     }),
 
-    (() => {
-      const redisUrl = process.env.REDIS_PUBLIC_URL;
-
-      if (!redisUrl) {
-        throw new Error('REDIS_PUBLIC_URL not set');
-      }
-
-      return BullModule.forRoot({
-        connection: new IORedis(redisUrl, {
-          maxRetriesPerRequest: null,
-        }),
-      });
-    })(),
+    BullModule.forRoot({
+      connection: redisClient,
+    }),
 
     QrModule,
     PrismaModule,
