@@ -2,13 +2,17 @@
 
 import { Suspense } from "react";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Script from "next/script";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
 const RAZORPAY_KEY = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "";
-const HEARTBEAT_INTERVAL = 20 * 60 * 1000;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SESSION: heartbeat fires every 2 min (well within the 30-min expiry window)
+// ─────────────────────────────────────────────────────────────────────────────
+const HEARTBEAT_INTERVAL = 2 * 60 * 1000;
 const RECEIPT_TTL_MS = 2 * 60 * 60 * 1000;
 
 interface MenuItem {
@@ -57,16 +61,9 @@ declare global {
   }
 }
 
-// ─── Session helpers ──────────────────────────────────────────────────────────
-function getSessionId(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("sessionId");
-}
-function setSessionId(id: string) {
-  localStorage.setItem("sessionId", id);
-}
-
-// ─── Receipt cache helpers ────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// RECEIPT CACHE — localStorage is fine here, receipts are not session identity
+// ─────────────────────────────────────────────────────────────────────────────
 const RECEIPT_KEY_PREFIX = "receipt_v1_";
 
 function saveReceiptToCache(orderId: string, stored: StoredReceipt) {
@@ -97,7 +94,9 @@ function getLatestReceiptFromCache(): StoredReceipt | null {
   } catch { return null; }
 }
 
-// ─── Canvas helpers ───────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// CANVAS RECEIPT HELPERS — unchanged
+// ─────────────────────────────────────────────────────────────────────────────
 function roundRect(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number, h: number, r: number,
@@ -167,7 +166,6 @@ function formatTimestamp(iso: string): string {
   });
 }
 
-// ─── Canvas receipt — dark bg, LIGHT readable text ───────────────────────────
 async function generateReceiptImage(data: ReceiptData): Promise<string> {
   const W = 560;
   const PADDING = 36;
@@ -198,7 +196,6 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   ctx.fillRect(0, 0, W, 4);
 
   let y = 42;
-
   ctx.font = "bold 30px Georgia, serif";
   ctx.fillStyle = "#f5d878";
   ctx.textAlign = "center";
@@ -232,7 +229,6 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
     ctx.font = "11px 'Courier New', monospace";
     ctx.fillStyle = "#a08850";
     ctx.fillText(label, PADDING, y);
-
     ctx.textAlign = "right";
     ctx.fillStyle = valueColor;
     ctx.fillText(value, W - PADDING, y);
@@ -258,23 +254,19 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
 
   for (const item of data.items) {
     const lineTotal = item.price * item.quantity;
-
     ctx.textAlign = "left";
     ctx.font = "13px Georgia, serif";
     ctx.fillStyle = "#f0e0b0";
     const truncName = truncateText(ctx, item.name, INNER * 0.55);
     ctx.fillText(truncName, PADDING, y);
-
     ctx.textAlign = "center";
     ctx.font = "11px 'Courier New', monospace";
     ctx.fillStyle = "#c09850";
     ctx.fillText(`× ${item.quantity}`, W / 2 - 10, y);
-
     ctx.textAlign = "right";
     ctx.font = "13px 'Courier New', monospace";
     ctx.fillStyle = "#f5c840";
     ctx.fillText(`₹${lineTotal.toFixed(2)}`, W - PADDING, y);
-
     if (item.quantity > 1) {
       ctx.textAlign = "right";
       ctx.font = "9px 'Courier New', monospace";
@@ -319,7 +311,6 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   ctx.font = "bold 15px Georgia, serif";
   ctx.fillStyle = "#f5d870";
   ctx.fillText("TOTAL PAID", PADDING + 14, y + 22);
-
   ctx.textAlign = "right";
   ctx.font = "bold 22px Georgia, serif";
   ctx.fillStyle = "#ffe878";
@@ -339,7 +330,6 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
     ctx.fillStyle = "#806840";
     ctx.fillText(label, PADDING, y);
     y += 13;
-
     ctx.font = "10px 'Courier New', monospace";
     ctx.fillStyle = "#c09050";
     ctx.fillText(value, PADDING, y);
@@ -355,7 +345,6 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   ctx.fillStyle = "#a08050";
   ctx.fillText("Thank you for visiting Caffiq.", W / 2, y);
   y += 18;
-
   ctx.font = "10px 'Courier New', monospace";
   ctx.fillStyle = "#706040";
   ctx.fillText("Every cup brewed with precision & passion.", W / 2, y);
@@ -371,7 +360,9 @@ async function generateReceiptImage(data: ReceiptData): Promise<string> {
   return canvas.toDataURL("image/png");
 }
 
-// ─── Misc ─────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// MISC HELPERS — unchanged
+// ─────────────────────────────────────────────────────────────────────────────
 function groupByCategory(items: MenuItem[]): Record<string, MenuItem[]> {
   return items.reduce<Record<string, MenuItem[]>>((acc, item) => {
     const cat = item.category ?? "Other";
@@ -420,15 +411,13 @@ const backdropAnim: Variants = {
   exit: { opacity: 0, transition: { duration: 0.2 } },
 };
 
-// ─── Backdrop ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// SUB-COMPONENTS — unchanged
+// ─────────────────────────────────────────────────────────────────────────────
 function Backdrop({
-  children,
-  onClose,
-  wide = false,
+  children, onClose, wide = false,
 }: {
-  children: React.ReactNode;
-  onClose?: () => void;
-  wide?: boolean;
+  children: React.ReactNode; onClose?: () => void; wide?: boolean;
 }) {
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -437,24 +426,18 @@ function Backdrop({
 
   return (
     <motion.div
-      variants={backdropAnim}
-      initial="hidden" animate="show" exit="exit"
+      variants={backdropAnim} initial="hidden" animate="show" exit="exit"
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-sm p-4 sm:p-6"
       onClick={onClose}
     >
-      <motion.div
-        variants={modalAnim}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full"
-        style={{ maxWidth: wide ? "580px" : "420px" }}
-      >
+      <motion.div variants={modalAnim} onClick={(e) => e.stopPropagation()}
+        className="w-full" style={{ maxWidth: wide ? "580px" : "420px" }}>
         {children}
       </motion.div>
     </motion.div>
   );
 }
 
-// ─── Cart Badge ───────────────────────────────────────────────────────────────
 function CartBadge({ count, total, onClick }: { count: number; total: number; onClick: () => void }) {
   return (
     <AnimatePresence>
@@ -481,14 +464,11 @@ function CartBadge({ count, total, onClick }: { count: number; total: number; on
   );
 }
 
-// ─── Receipt Banner ───────────────────────────────────────────────────────────
 function ReceiptBanner({ onClick }: { onClick: () => void }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 60 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 60 }}
-      transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, y: 60 }} animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 60 }} transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
       className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-between px-5 py-3.5"
       style={{
         background: "linear-gradient(90deg, #0f0b05 0%, #1c1408 50%, #0f0b05 100%)",
@@ -497,10 +477,8 @@ function ReceiptBanner({ onClick }: { onClick: () => void }) {
       }}
     >
       <div className="flex items-center gap-3">
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-          style={{ background: "rgba(196,154,69,0.12)", border: "1px solid rgba(196,154,69,0.28)" }}
-        >
+        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+          style={{ background: "rgba(196,154,69,0.12)", border: "1px solid rgba(196,154,69,0.28)" }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d4a762" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
@@ -513,17 +491,9 @@ function ReceiptBanner({ onClick }: { onClick: () => void }) {
           <p className="text-[#7a5e30] text-[10px] font-mono leading-tight tracking-wide">Payment confirmed · tap to view &amp; download</p>
         </div>
       </div>
-
-      <motion.button
-        whileTap={{ scale: 0.94 }}
-        whileHover={{ scale: 1.04 }}
-        onClick={onClick}
+      <motion.button whileTap={{ scale: 0.94 }} whileHover={{ scale: 1.04 }} onClick={onClick}
         className="flex items-center gap-1.5 px-4 py-2 rounded-full text-black text-xs font-bold tracking-wide shrink-0"
-        style={{
-          background: "linear-gradient(90deg, #c49a45, #e0b855)",
-          boxShadow: "0 2px 12px rgba(196,154,69,0.35)",
-        }}
-      >
+        style={{ background: "linear-gradient(90deg, #c49a45, #e0b855)", boxShadow: "0 2px 12px rgba(196,154,69,0.35)" }}>
         View
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
@@ -533,15 +503,10 @@ function ReceiptBanner({ onClick }: { onClick: () => void }) {
   );
 }
 
-// ─── Receipt Modal content ────────────────────────────────────────────────────
 function ReceiptModalContent({
-  imageBase64,
-  receiptData,
-  onClose,
+  imageBase64, receiptData, onClose,
 }: {
-  imageBase64: string;
-  receiptData: ReceiptData;
-  onClose: () => void;
+  imageBase64: string; receiptData: ReceiptData; onClose: () => void;
 }) {
   const handleDownload = () => {
     const a = document.createElement("a");
@@ -563,34 +528,21 @@ function ReceiptModalContent({
           <p className="text-[#d4a762] text-xs tracking-[0.22em] uppercase font-mono">Payment Confirmed</p>
           <h3 className="text-white text-xl font-serif">Your Receipt</h3>
         </div>
-        <motion.button
-          whileTap={{ scale: 0.88 }}
-          onClick={onClose}
-          className="w-8 h-8 rounded-full border border-[#2a1e0a] flex items-center justify-center text-gray-500 hover:text-[#d4a762] hover:border-[#c49a45]/40 transition shrink-0"
-        >
+        <motion.button whileTap={{ scale: 0.88 }} onClick={onClose}
+          className="w-8 h-8 rounded-full border border-[#2a1e0a] flex items-center justify-center text-gray-500 hover:text-[#d4a762] hover:border-[#c49a45]/40 transition shrink-0">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         </motion.button>
       </div>
-
-      <div
-        className="flex-1 overflow-y-auto min-h-0 px-4 py-4"
-        style={{ scrollbarWidth: "thin", scrollbarColor: "#2a1e0a transparent" }}
-      >
-        <img
-          src={imageBase64}
-          alt="Payment receipt"
-          className="w-full rounded-xl"
-          style={{ border: "1px solid #2a1e0a" }}
-        />
+      <div className="flex-1 overflow-y-auto min-h-0 px-4 py-4"
+        style={{ scrollbarWidth: "thin", scrollbarColor: "#2a1e0a transparent" }}>
+        <img src={imageBase64} alt="Payment receipt" className="w-full rounded-xl"
+          style={{ border: "1px solid #2a1e0a" }} />
       </div>
-
       <div className="shrink-0 px-5 pb-5 pt-4 border-t border-[#1e1508] flex flex-col gap-3 bg-[#080603]">
-        <div
-          className="flex items-center gap-2 px-3 py-2 rounded-lg"
-          style={{ background: "rgba(126,200,126,0.06)", border: "1px solid rgba(126,200,126,0.12)" }}
-        >
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
+          style={{ background: "rgba(126,200,126,0.06)", border: "1px solid rgba(126,200,126,0.12)" }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7ec87e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
@@ -599,12 +551,9 @@ function ReceiptModalContent({
           </span>
         </div>
         <div className="flex gap-3">
-          <motion.button
-            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-            onClick={handleDownload}
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} onClick={handleDownload}
             className="flex-1 py-3 rounded-full text-sm font-semibold tracking-wide flex items-center justify-center gap-2 text-black"
-            style={{ background: "linear-gradient(90deg, #c49a45, #d4a762)" }}
-          >
+            style={{ background: "linear-gradient(90deg, #c49a45, #d4a762)" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
@@ -612,11 +561,8 @@ function ReceiptModalContent({
             </svg>
             Download PNG
           </motion.button>
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={onClose}
-            className="px-5 py-3 rounded-full text-sm font-semibold tracking-wide border border-[#2a1e0a] text-[#d4a762]/60 hover:border-[#c49a45]/30 hover:text-[#d4a762] transition"
-          >
+          <motion.button whileTap={{ scale: 0.97 }} onClick={onClose}
+            className="px-5 py-3 rounded-full text-sm font-semibold tracking-wide border border-[#2a1e0a] text-[#d4a762]/60 hover:border-[#c49a45]/30 hover:text-[#d4a762] transition">
             Close
           </motion.button>
         </div>
@@ -628,10 +574,30 @@ function ReceiptModalContent({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE-LEVEL SESSION GUARD
+// Prevents React 18 Strict Mode's double-invocation of useEffect from
+// calling /session/start twice, which would create a duplicate session
+// whose lastActivityAt falls back to @default(now()) UTC instead of IST.
+// A useRef won't work here because Strict Mode fully remounts the component,
+// resetting all refs. A module-level variable survives across both invocations.
+// ─────────────────────────────────────────────────────────────────────────────
+let sessionInitiated = false;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN PAGE
+// ─────────────────────────────────────────────────────────────────────────────
 function MenuPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+
+  // ── Read both IDs from URL — this is the single source of truth ──────────
   const tableId = searchParams.get("tableId");
+  const sessionIdFromUrl = searchParams.get("sessionId");
+
+  // useRef so the heartbeat interval always reads the latest sessionId
+  // without needing to re-register the interval (avoids stale closure bug)
+  const sessionIdRef = useRef<string | null>(sessionIdFromUrl);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loadingMenu, setLoadingMenu] = useState(true);
@@ -639,57 +605,99 @@ function MenuPage() {
   const [modal, setModal] = useState<ModalState>({ type: "idle" });
   const [cachedReceipt, setCachedReceipt] = useState<StoredReceipt | null>(null);
   const { toasts, add: addToast } = useToast();
-  const sessionStartedRef = useRef(false);
 
-  // Load cached receipt on mount
+  // Load receipt cache on mount
   useEffect(() => {
     const stored = getLatestReceiptFromCache();
     if (stored) setCachedReceipt(stored);
   }, []);
 
-  // ── 1. Start session ──────────────────────────────────────────────────────
+  // ── 1. SESSION INIT ───────────────────────────────────────────────────────
+  //
+  // Rules:
+  //   • No tableId in URL → invalid QR, show error
+  //   • sessionId already in URL → session exists, just sync ref (handles refresh)
+  //   • Only tableId in URL → create session, push sessionId into URL
+  //
+  // Why router.replace and not localStorage?
+  //   router.replace puts sessionId in the URL permanently for this tab.
+  //   Refreshing the page keeps the URL → no duplicate sessions created.
+  //   No storage needed, no expiry edge cases, no cross-tab leakage.
+  //
+  // Why module-level sessionInitiated guard?
+  //   React 18 Strict Mode double-invokes every useEffect on mount in dev.
+  //   By the time the second run fires, sessionIdFromUrl is still null
+  //   (URL hasn't updated yet), so without this guard it would call
+  //   /session/start a second time → duplicate session → UTC timestamp.
+  // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!tableId || sessionStartedRef.current) return;
-    sessionStartedRef.current = true;
+    if (!tableId) {
+      addToast("Invalid QR. Please rescan your table's QR code.", "error");
+      return;
+    }
 
-    const startSession = async () => {
+    if (sessionIdFromUrl) {
+      // Already have a session in URL — sync ref and skip creation
+      sessionIdRef.current = sessionIdFromUrl;
+      return;
+    }
+
+    // Module-level guard — survives React Strict Mode double-invoke
+    if (sessionInitiated) return;
+    sessionInitiated = true;
+
+    const initSession = async () => {
       try {
-        localStorage.removeItem("sessionId");
-
         const res = await fetch(`${BASE_URL}/session/start`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tableId }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
         const data = await res.json() as { id: string };
-        setSessionId(data.id);
+        sessionIdRef.current = data.id;
+
+        // Push sessionId into the URL — survives refresh, no storage needed
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("sessionId", data.id);
+        router.replace(`?${params.toString()}`);
       } catch {
+        sessionInitiated = false; // Reset on failure so retry is possible
         addToast("Could not start session. Please rescan.", "error");
       }
     };
 
-    void startSession();
-  }, [tableId, addToast]);
+    void initSession();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableId, sessionIdFromUrl]);
 
-  // ── 2. Heartbeat ──────────────────────────────────────────────────────────
+  // ── 2. HEARTBEAT ──────────────────────────────────────────────────────────
+  //
+  // Fires every 2 minutes to keep the session alive on the backend.
+  // Reads sessionId from ref directly — no stale closure issue.
+  // Registered once on mount, cleaned up on unmount.
+  // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!tableId) return;
+
     const interval = setInterval(async () => {
-      const sessionId = getSessionId();
-      if (!sessionId) return;
+      const sid = sessionIdRef.current;
+      if (!sid) return; // Session not ready yet — skip this tick
+
       try {
         await fetch(`${BASE_URL}/session/heartbeat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
+          body: JSON.stringify({ sessionId: sid }),
         });
-      } catch { /* silent */ }
+      } catch { /* heartbeat failure is non-fatal — cron handles cleanup */ }
     }, HEARTBEAT_INTERVAL);
-    return () => clearInterval(interval);
-  }, [tableId]);
 
-  // ── 3. Fetch menu ─────────────────────────────────────────────────────────
+    return () => clearInterval(interval); // Prevent zombie intervals on unmount
+  }, [tableId]); // Only depends on tableId, not sessionId (ref handles that)
+
+  // ── 3. FETCH MENU — unchanged ─────────────────────────────────────────────
   useEffect(() => {
     const fetchMenu = async () => {
       setLoadingMenu(true);
@@ -733,13 +741,13 @@ function MenuPage() {
     });
   };
 
+  // ── Checkout: read sessionId from ref (always current) ───────────────────
   const handleCheckout = () => {
-    const sessionId = getSessionId();
-    if (!sessionId) { setModal({ type: "session_expired" }); return; }
+    const sid = sessionIdRef.current;
+    if (!sid) { setModal({ type: "session_expired" }); return; }
     setModal({ type: "payment_choice" });
   };
 
-  // ── Generate + cache receipt ───────────────────────────────────────────────
   const generateAndCacheReceipt = useCallback(async (receiptData: ReceiptData) => {
     try {
       const imageBase64 = await generateReceiptImage(receiptData);
@@ -757,10 +765,10 @@ function MenuPage() {
     }
   }, [addToast]);
 
-  // ── Place order ────────────────────────────────────────────────────────────
+  // ── Place order: read sessionId from ref ──────────────────────────────────
   const placeOrder = async (method: PaymentMethod) => {
-    const sessionId = getSessionId();
-    if (!sessionId) { setModal({ type: "session_expired" }); return; }
+    const sid = sessionIdRef.current;
+    if (!sid) { setModal({ type: "session_expired" }); return; }
 
     setModal({ type: "ordering", method });
 
@@ -770,7 +778,7 @@ function MenuPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            sessionId, tableId,
+            sessionId: sid, tableId,
             paymentMethod: "OFFLINE",
             items: cart.map((c) => ({ menuItemId: c.id, quantity: c.quantity })),
           }),
@@ -780,7 +788,6 @@ function MenuPage() {
           if (err.message === "SESSION_EXPIRED") { setModal({ type: "session_expired" }); return; }
           throw new Error(err.message ?? "Order failed");
         }
-        // ✅ FIXED: backend returns { message, orderId } not { id }
         const order = await res.json() as { orderId: string };
         setCart([]);
         setModal({ type: "success", method: "OFFLINE", orderId: order.orderId });
@@ -822,7 +829,7 @@ function MenuPage() {
             const verifyRes = await fetch(`${BASE_URL}/payments/verify-and-create`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ...response, sessionId, tableId, items: cartSnapshot }),
+              body: JSON.stringify({ ...response, sessionId: sid, tableId, items: cartSnapshot }),
             });
 
             if (!verifyRes.ok) {
@@ -848,7 +855,6 @@ function MenuPage() {
               return;
             }
 
-            // ✅ FIXED: backend returns { message, orderId } — read orderId correctly
             const data = await verifyRes.json() as { orderId: string };
             const receiptData: ReceiptData = {
               orderId: data.orderId,
@@ -858,7 +864,7 @@ function MenuPage() {
               items: cartForReceipt,
               total: totalSnapshot,
               paidAt: new Date().toISOString(),
-              paymentStatus: "SUCCESS",  // ✅ FIXED: only set SUCCESS when verifyRes.ok is true
+              paymentStatus: "SUCCESS",
             };
 
             const result = await generateAndCacheReceipt(receiptData);
@@ -948,11 +954,9 @@ function MenuPage() {
         <div className="max-w-7xl mx-auto px-6 sm:px-12 lg:px-24 xl:px-30">
 
           {/* ── Hero ── */}
-          <motion.div
-            className="pt-10 pb-10 sm:pb-14 max-w-3xl"
+          <motion.div className="pt-10 pb-10 sm:pb-14 max-w-3xl"
             initial="hidden" animate="show"
-            variants={{ show: { transition: { staggerChildren: 0.12 } } }}
-          >
+            variants={{ show: { transition: { staggerChildren: 0.12 } } }}>
             <motion.p variants={fadeUp} className="text-[#d4a762] text-xs tracking-[0.25em] uppercase mb-3 font-mono">
               Artisan Coffee Experience
             </motion.p>
@@ -965,13 +969,10 @@ function MenuPage() {
           </motion.div>
 
           {/* ── Divider ── */}
-          <motion.div
-            className="w-full h-px"
+          <motion.div className="w-full h-px"
             style={{ background: "linear-gradient(90deg, #c49a45 0%, #1e1508 55%, transparent 100%)" }}
-            initial={{ scaleX: 0, originX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
-          />
+            initial={{ scaleX: 0, originX: 0 }} animate={{ scaleX: 1 }}
+            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.3 }} />
 
           {/* ── Menu sections ── */}
           <div className="py-10 sm:py-14 flex flex-col gap-12 sm:gap-16">
@@ -999,12 +1000,9 @@ function MenuPage() {
               Object.entries(grouped).map(([category, items], si) => {
                 const meta = categoryMeta[category] ?? { tag: "Selection" };
                 return (
-                  <motion.div
-                    key={si}
-                    initial="hidden" whileInView="show"
+                  <motion.div key={si} initial="hidden" whileInView="show"
                     viewport={{ once: true, margin: "-60px" }}
-                    variants={{ show: { transition: { staggerChildren: 0.07 } } }}
-                  >
+                    variants={{ show: { transition: { staggerChildren: 0.07 } } }}>
                     <motion.div variants={fadeUp} className="flex flex-wrap items-end justify-between gap-3 mb-5 sm:mb-7">
                       <div>
                         <p className="text-[#d4a762] text-xs tracking-[0.2em] uppercase mb-1 font-mono">{meta.tag}</p>
@@ -1016,17 +1014,12 @@ function MenuPage() {
                         <span className="text-gray-600 text-xs">{items.length} items</span>
                       </div>
                     </motion.div>
-
                     <div className="flex flex-col divide-y divide-[#150f05]">
                       {items.map((item, ii) => {
                         const inCart = cart.find((c) => c.id === item.id);
                         return (
-                          <motion.div
-                            key={ii}
-                            custom={ii}
-                            variants={fadeUp}
-                            className="flex items-center justify-between gap-4 py-4 group hover:bg-[#0d0a05] -mx-3 px-3 rounded-xl transition"
-                          >
+                          <motion.div key={ii} custom={ii} variants={fadeUp}
+                            className="flex items-center justify-between gap-4 py-4 group hover:bg-[#0d0a05] -mx-3 px-3 rounded-xl transition">
                             <div className="flex flex-col gap-0.5 min-w-0">
                               <span className="text-gray-200 text-sm sm:text-base font-medium group-hover:text-[#d4a762] transition-colors truncate">
                                 {item.name}
@@ -1039,40 +1032,25 @@ function MenuPage() {
                               <span className="text-[#c49a45] text-sm sm:text-base font-semibold">₹{item.price}</span>
                               <AnimatePresence mode="wait">
                                 {inCart ? (
-                                  <motion.div
-                                    key="stepper"
-                                    initial={{ opacity: 0, scale: 0.88 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.88 }}
-                                    transition={{ duration: 0.18 }}
-                                    className="flex items-center gap-1.5 sm:gap-2"
-                                  >
-                                    <motion.button whileTap={{ scale: 0.85 }}
-                                      onClick={() => removeFromCart(item.id)}
-                                      className="w-7 h-7 rounded-full border border-[#2a1e0a] text-[#d4a762]/50 hover:border-[#c49a45] hover:text-[#c49a45] text-base leading-none grid place-items-center transition"
-                                    >−</motion.button>
-                                    <span className="text-gray-200 text-sm font-bold w-5 text-center tabular-nums">
-                                      {inCart.quantity}
-                                    </span>
-                                    <motion.button whileTap={{ scale: 0.85 }}
-                                      onClick={() => addToCart(item)}
+                                  <motion.div key="stepper"
+                                    initial={{ opacity: 0, scale: 0.88 }} animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.88 }} transition={{ duration: 0.18 }}
+                                    className="flex items-center gap-1.5 sm:gap-2">
+                                    <motion.button whileTap={{ scale: 0.85 }} onClick={() => removeFromCart(item.id)}
+                                      className="w-7 h-7 rounded-full border border-[#2a1e0a] text-[#d4a762]/50 hover:border-[#c49a45] hover:text-[#c49a45] text-base leading-none grid place-items-center transition">−</motion.button>
+                                    <span className="text-gray-200 text-sm font-bold w-5 text-center tabular-nums">{inCart.quantity}</span>
+                                    <motion.button whileTap={{ scale: 0.85 }} onClick={() => addToCart(item)}
                                       className="w-7 h-7 rounded-full text-black text-base leading-none grid place-items-center transition"
                                       style={{ background: "#c49a45" }}
                                       onMouseEnter={(e) => (e.currentTarget.style.background = "#d4a762")}
-                                      onMouseLeave={(e) => (e.currentTarget.style.background = "#c49a45")}
-                                    >+</motion.button>
+                                      onMouseLeave={(e) => (e.currentTarget.style.background = "#c49a45")}>+</motion.button>
                                   </motion.div>
                                 ) : (
-                                  <motion.button
-                                    key="add"
-                                    initial={{ opacity: 0, scale: 0.88 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.88 }}
-                                    transition={{ duration: 0.18 }}
-                                    whileTap={{ scale: 0.93 }}
-                                    onClick={() => addToCart(item)}
-                                    className="px-3 py-1.5 border border-[#2a1e0a] hover:border-[#c49a45] hover:text-[#c49a45] text-[#d4a762]/40 text-xs rounded-full transition tracking-widest"
-                                  >
+                                  <motion.button key="add"
+                                    initial={{ opacity: 0, scale: 0.88 }} animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.88 }} transition={{ duration: 0.18 }}
+                                    whileTap={{ scale: 0.93 }} onClick={() => addToCart(item)}
+                                    className="px-3 py-1.5 border border-[#2a1e0a] hover:border-[#c49a45] hover:text-[#c49a45] text-[#d4a762]/40 text-xs rounded-full transition tracking-widest">
                                     ADD
                                   </motion.button>
                                 )}
@@ -1094,22 +1072,18 @@ function MenuPage() {
       {/* ── Receipt banner ── */}
       <AnimatePresence>
         {showReceiptBanner && (
-          <ReceiptBanner
-            onClick={() =>
-              setModal({
-                type: "receipt",
-                imageBase64: cachedReceipt!.imageBase64,
-                receiptData: cachedReceipt!.receiptData,
-              })
-            }
-          />
+          <ReceiptBanner onClick={() => setModal({
+            type: "receipt",
+            imageBase64: cachedReceipt!.imageBase64,
+            receiptData: cachedReceipt!.receiptData,
+          })} />
         )}
       </AnimatePresence>
 
       {/* ── Cart badge ── */}
       <CartBadge count={cartCount} total={cartTotal} onClick={() => setModal({ type: "cart" })} />
 
-      {/* ══ MODALS ══ */}
+      {/* ══ MODALS — all unchanged ══ */}
       <AnimatePresence>
 
         {modal.type === "session_expired" && (
@@ -1127,10 +1101,8 @@ function MenuPage() {
                   Your session has timed out. Please rescan the QR code on your table to continue.
                 </p>
               </div>
-              <motion.button whileTap={{ scale: 0.96 }} onClick={() => {
-                localStorage.removeItem("sessionId");
-                setModal({ type: "idle" });
-              }}
+              <motion.button whileTap={{ scale: 0.96 }}
+                onClick={() => setModal({ type: "idle" })}
                 className="btn-gold w-full py-3 rounded-full text-sm font-semibold tracking-wide">
                 Understood
               </motion.button>
@@ -1170,14 +1142,10 @@ function MenuPage() {
                   <div className="flex-1 overflow-y-auto cart-scroll px-5 sm:px-6 min-h-0">
                     <AnimatePresence initial={false}>
                       {cart.map((item) => (
-                        <motion.div
-                          key={item.id}
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.22 }}
-                          className="flex items-center justify-between gap-4 py-3.5 border-b border-[#150f05] last:border-b-0"
-                        >
+                        <motion.div key={item.id}
+                          initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.22 }}
+                          className="flex items-center justify-between gap-4 py-3.5 border-b border-[#150f05] last:border-b-0">
                           <div className="flex flex-col gap-0.5 min-w-0">
                             <p className="text-gray-200 text-sm font-medium truncate">{item.name}</p>
                             <p className="text-[#c49a45]/50 text-xs font-mono">₹{item.price} × {item.quantity}</p>
@@ -1274,12 +1242,10 @@ function MenuPage() {
           <Backdrop key="success">
             <div className="rounded-2xl p-6 sm:p-8 flex flex-col items-center gap-5 text-center" style={card}>
               <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
+                initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
                 className="w-14 h-14 rounded-full border border-[#c49a45]/25 flex items-center justify-center"
-                style={{ background: "radial-gradient(circle, rgba(196,154,69,0.12) 0%, transparent 70%)" }}
-              >
+                style={{ background: "radial-gradient(circle, rgba(196,154,69,0.12) 0%, transparent 70%)" }}>
                 <motion.svg
                   initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
                   transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
@@ -1328,14 +1294,12 @@ function MenuPage() {
         style={{ maxWidth: "min(280px, calc(100vw - 2rem))" }}>
         <AnimatePresence>
           {toasts.map((t) => (
-            <motion.div
-              key={t.id}
+            <motion.div key={t.id}
               initial={{ opacity: 0, x: 40, scale: 0.94 }}
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: 40, scale: 0.94 }}
               transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-              className={`px-4 py-3 rounded-xl border text-xs tracking-wide font-mono ${toastCls[t.type]}`}
-            >
+              className={`px-4 py-3 rounded-xl border text-xs tracking-wide font-mono ${toastCls[t.type]}`}>
               {t.msg}
             </motion.div>
           ))}
