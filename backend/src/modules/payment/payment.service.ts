@@ -92,7 +92,7 @@ export class PaymentService {
       {
         attempts: 3,
         backoff: { type: 'exponential', delay: 2000 },
-        jobId: `online:${razorpay_payment_id}`,
+        jobId: `online-${razorpay_payment_id}`,
       },
     );
 
