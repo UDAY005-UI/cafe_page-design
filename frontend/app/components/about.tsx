@@ -6,12 +6,10 @@ import crossiant from "../../public/crossiant.jpg";
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
-/* ─── Tiny hook: triggers CSS class when element enters viewport ─── */
 function useReveal<T extends HTMLElement>(threshold = 0.15) {
   const ref = useRef<T | null>(null);
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
     if (!el) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -40,7 +38,6 @@ export default function About() {
   return (
     <>
       <style>{`
-        /* ── Keyframes ───────────────────────────────────────────── */
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(48px); }
           to   { opacity: 1; transform: translateY(0);    }
@@ -70,7 +67,6 @@ export default function About() {
           to   { width: 3rem; }
         }
 
-        /* ── Reveal base state (hidden) ──────────────────────────── */
         .reveal-up,
         .reveal-left,
         .reveal-right,
@@ -81,7 +77,6 @@ export default function About() {
           opacity: 0;
         }
 
-        /* ── Triggered state ─────────────────────────────────────── */
         .is-visible.reveal-up,
         .is-visible .reveal-up {
           animation: fadeUp 0.8s cubic-bezier(.22,1,.36,1) forwards;
@@ -96,14 +91,12 @@ export default function About() {
           animation: scaleIn 0.9s cubic-bezier(.22,1,.36,1) forwards;
         }
 
-        /* ── Stagger helpers ─────────────────────────────────────── */
         .is-visible .d1 { animation: fadeUp 0.7s .05s cubic-bezier(.22,1,.36,1) forwards; }
         .is-visible .d2 { animation: fadeUp 0.7s .18s cubic-bezier(.22,1,.36,1) forwards; }
         .is-visible .d3 { animation: fadeUp 0.7s .32s cubic-bezier(.22,1,.36,1) forwards; }
         .is-visible .d4 { animation: fadeUp 0.7s .46s cubic-bezier(.22,1,.36,1) forwards; }
         .is-visible .d5 { animation: fadeUp 0.7s .60s cubic-bezier(.22,1,.36,1) forwards; }
 
-        /* ── Accent line draw ────────────────────────────────────── */
         .line-accent {
           display: inline-block;
           width: 0;
@@ -115,7 +108,6 @@ export default function About() {
           animation: lineDraw 0.6s 0.7s ease forwards;
         }
 
-        /* ── Shimmer title ───────────────────────────────────────── */
         .shimmer-title {
           background: linear-gradient(
             90deg,
@@ -133,7 +125,6 @@ export default function About() {
                      shimmer 3s 1s linear infinite;
         }
 
-        /* ── Image hover ─────────────────────────────────────────── */
         .img-wrap {
           overflow: hidden;
           border-radius: 1.5rem;
@@ -159,12 +150,10 @@ export default function About() {
         }
         .img-wrap:hover::after { opacity: 1; }
 
-        /* ── Float badge ─────────────────────────────────────────── */
         .float-badge {
           animation: float 4s ease-in-out infinite;
         }
 
-        /* ── Button ──────────────────────────────────────────────── */
         .cta-btn {
           position: relative;
           overflow: hidden;
@@ -195,7 +184,6 @@ export default function About() {
         .cta-btn:hover::before { transform: translateX(120%); }
         .cta-btn:active { transform: translateY(0) scale(.98); }
 
-        /* ── Decorative glow orbs ────────────────────────────────── */
         .glow-orb {
           position: absolute;
           border-radius: 50%;
@@ -207,146 +195,154 @@ export default function About() {
 
       <section
         id="about"
-        className="relative w-full h-auto px-6 sm:px-12 lg:px-24 xl:px-32 py-20 overflow-hidden"
+        className="relative w-full h-auto overflow-hidden bg-black"
       >
-        {/* ── Ambient glow orbs ── */}
+        {/* Top fade — blends seamlessly into the hero above */}
         <div
-          className="glow-orb"
+          className="absolute top-0 left-0 right-0 h-40 pointer-events-none z-10"
           style={{
-            width: "420px", height: "420px",
-            background: "rgba(196,154,69,.12)",
-            top: "-60px", right: "-80px",
-          }}
-        />
-        <div
-          className="glow-orb"
-          style={{
-            width: "320px", height: "320px",
-            background: "rgba(255,210,140,.07)",
-            bottom: "100px", left: "-60px",
+            background: "linear-gradient(to bottom, #000000 0%, transparent 100%)",
           }}
         />
 
-        {/* ── Section Title ── */}
-        <div
-          ref={titleRef}
-          className="reveal-child flex flex-col items-center justify-center gap-3 pb-16 relative z-10"
-        >
-          <span className="d1 line-accent" />
-          <h2 className="d2 shimmer-title text-4xl sm:text-5xl lg:text-6xl font-semibold text-center tracking-tight font-serif">
-            About Our Cafe
-          </h2>
-          <p className="d3 text-gray-400 text-sm tracking-widest uppercase">
-            Where every detail matters
-          </p>
-          <span className="d4 line-accent" />
-        </div>
+        {/* Actual content wrapper with padding */}
+        <div className="relative px-6 sm:px-12 lg:px-24 xl:px-32 pt-32 pb-20">
 
-        {/* ── Content Rows ── */}
-        <div className="flex flex-col gap-24 lg:gap-32 relative z-10">
+          {/* ── Ambient glow orbs ── */}
+          <div
+            className="glow-orb"
+            style={{
+              width: "420px", height: "420px",
+              background: "rgba(196,154,69,.12)",
+              top: "-60px", right: "-80px",
+            }}
+          />
+          <div
+            className="glow-orb"
+            style={{
+              width: "320px", height: "320px",
+              background: "rgba(255,210,140,.07)",
+              bottom: "100px", left: "-60px",
+            }}
+          />
 
-          {/* ── Row 1: Text Left · Image Right ── */}
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-16">
-
-            {/* Text */}
-            <div
-              ref={row1TextRef}
-              className="reveal-child flex flex-col items-start justify-center gap-5 w-full lg:w-1/2"
-            >
-              <p className="d1 text-[#ffd28c] text-sm font-semibold uppercase tracking-widest">
-                Refined Origins
-              </p>
-              <h1 className="d2 text-white text-3xl sm:text-4xl font-bold font-serif leading-snug">
-                A Story in<br />Every Pour
-              </h1>
-              <div className="d3 w-10 h-0.5 bg-[#c49a45] rounded-full" />
-              <p className="d4 text-gray-300 leading-relaxed max-w-md text-base">
-                Each cup begins long before it reaches your table. From carefully
-                nurtured farms to precise roasting, we shape every detail to create
-                a coffee experience that feels intentional, balanced, and quietly
-                indulgent.
-              </p>
-              <div className="d5">
-                <button onClick={() => router.push("/menu")} className="cta-btn">Step Inside →</button>
-              </div>
-            </div>
-
-            {/* Image */}
-            <div
-              ref={row1ImgRef}
-              className="reveal-scale w-full lg:w-1/2 relative"
-            >
-              <div className="img-wrap w-full shadow-2xl shadow-black/50">
-                <Image
-                  src={coffee}
-                  alt="coffee"
-                  className="w-full h-64 sm:h-80 lg:h-105 object-cover"
-                />
-              </div>
-              {/* Floating badge */}
-              <div
-                className="float-badge absolute -bottom-5 -left-5 bg-[#1a1008] border border-[#c49a45]/40 rounded-2xl px-5 py-3 shadow-xl hidden sm:flex items-center gap-3"
-              >
-                <span className="text-2xl">☕</span>
-                <div>
-                  <p className="text-[#ffd28c] text-xs font-semibold uppercase tracking-wider">Single Origin</p>
-                  <p className="text-white text-sm font-medium">Ethiopia · Yirgacheffe</p>
-                </div>
-              </div>
-            </div>
+          {/* ── Section Title ── */}
+          <div
+            ref={titleRef}
+            className="reveal-child flex flex-col items-center justify-center gap-3 pb-16 relative z-10"
+          >
+            <span className="d1 line-accent" />
+            <h2 className="d2 shimmer-title text-4xl sm:text-5xl lg:text-6xl font-semibold text-center tracking-tight font-serif">
+              About Our Cafe
+            </h2>
+            <p className="d3 text-gray-400 text-sm tracking-widest uppercase">
+              Where every detail matters
+            </p>
+            <span className="d4 line-accent" />
           </div>
 
-          {/* ── Row 2: Image Left · Text Right ── */}
-          <div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-12 lg:gap-16">
+          {/* ── Content Rows ── */}
+          <div className="flex flex-col gap-24 lg:gap-32 relative z-10">
 
-            {/* Image */}
-            <div
-              ref={row2ImgRef}
-              className="reveal-scale w-full lg:w-1/2 relative"
-            >
-              <div className="img-wrap w-full shadow-2xl shadow-black/50">
-                <Image
-                  src={crossiant}
-                  alt="croissant"
-                  className="w-full h-64 sm:h-80 lg:h-105 object-cover"
-                />
-              </div>
-              {/* Floating badge */}
+            {/* ── Row 1: Text Left · Image Right ── */}
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-16">
+
+              {/* Text */}
               <div
-                className="float-badge absolute -bottom-5 -right-5 bg-[#1a1008] border border-[#c49a45]/40 rounded-2xl px-5 py-3 shadow-xl hidden sm:flex items-center gap-3"
-                style={{ animationDelay: "1.5s" }}
+                ref={row1TextRef}
+                className="reveal-child flex flex-col items-start justify-center gap-5 w-full lg:w-1/2"
               >
-                <span className="text-2xl">🥐</span>
-                <div>
-                  <p className="text-[#ffd28c] text-xs font-semibold uppercase tracking-wider">Baked Fresh</p>
-                  <p className="text-white text-sm font-medium">Daily at 6 AM</p>
+                <p className="d1 text-[#ffd28c] text-sm font-semibold uppercase tracking-widest">
+                  Refined Origins
+                </p>
+                <h1 className="d2 text-white text-3xl sm:text-4xl font-bold font-serif leading-snug">
+                  A Story in<br />Every Pour
+                </h1>
+                <div className="d3 w-10 h-0.5 bg-[#c49a45] rounded-full" />
+                <p className="d4 text-gray-300 leading-relaxed max-w-md text-base">
+                  Each cup begins long before it reaches your table. From carefully
+                  nurtured farms to precise roasting, we shape every detail to create
+                  a coffee experience that feels intentional, balanced, and quietly
+                  indulgent.
+                </p>
+                <div className="d5">
+                  <button onClick={() => router.push("/menu")} className="cta-btn">Step Inside →</button>
+                </div>
+              </div>
+
+              {/* Image */}
+              <div
+                ref={row1ImgRef}
+                className="reveal-scale w-full lg:w-1/2 relative"
+              >
+                <div className="img-wrap w-full shadow-2xl shadow-black/50">
+                  <Image
+                    src={coffee}
+                    alt="coffee"
+                    className="w-full h-64 sm:h-80 lg:h-105 object-cover"
+                  />
+                </div>
+                <div className="float-badge absolute -bottom-5 -left-5 bg-[#1a1008] border border-[#c49a45]/40 rounded-2xl px-5 py-3 shadow-xl hidden sm:flex items-center gap-3">
+                  <span className="text-2xl">☕</span>
+                  <div>
+                    <p className="text-[#ffd28c] text-xs font-semibold uppercase tracking-wider">Single Origin</p>
+                    <p className="text-white text-sm font-medium">Ethiopia · Yirgacheffe</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Text */}
-            <div
-              ref={row2TextRef}
-              className="reveal-child flex flex-col items-start justify-center gap-5 w-full lg:w-1/2"
-            >
-              <p className="d1 text-[#ffd28c] text-sm font-semibold uppercase tracking-widest">
-                Beyond Brewing
-              </p>
-              <h1 className="d2 text-white text-3xl sm:text-4xl font-bold font-serif leading-snug">
-                An Elevated<br />Experience
-              </h1>
-              <div className="d3 w-10 h-0.5 bg-[#c49a45] rounded-full" />
-              <p className="d4 text-gray-300 leading-relaxed max-w-md text-base">
-                This is not just coffee — it&apos;s a composition of flavor, texture,
-                and aroma. Designed to slow you down and draw you in, one sip at
-                a time.
-              </p>
-              <div className="d5">
-                <button onClick={() => router.push("/menu")} className="cta-btn">Explore Further →</button>
+            {/* ── Row 2: Image Left · Text Right ── */}
+            <div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-12 lg:gap-16">
+
+              {/* Image */}
+              <div
+                ref={row2ImgRef}
+                className="reveal-scale w-full lg:w-1/2 relative"
+              >
+                <div className="img-wrap w-full shadow-2xl shadow-black/50">
+                  <Image
+                    src={crossiant}
+                    alt="croissant"
+                    className="w-full h-64 sm:h-80 lg:h-105 object-cover"
+                  />
+                </div>
+                <div
+                  className="float-badge absolute -bottom-5 -right-5 bg-[#1a1008] border border-[#c49a45]/40 rounded-2xl px-5 py-3 shadow-xl hidden sm:flex items-center gap-3"
+                  style={{ animationDelay: "1.5s" }}
+                >
+                  <span className="text-2xl">🥐</span>
+                  <div>
+                    <p className="text-[#ffd28c] text-xs font-semibold uppercase tracking-wider">Baked Fresh</p>
+                    <p className="text-white text-sm font-medium">Daily at 6 AM</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Text */}
+              <div
+                ref={row2TextRef}
+                className="reveal-child flex flex-col items-start justify-center gap-5 w-full lg:w-1/2"
+              >
+                <p className="d1 text-[#ffd28c] text-sm font-semibold uppercase tracking-widest">
+                  Beyond Brewing
+                </p>
+                <h1 className="d2 text-white text-3xl sm:text-4xl font-bold font-serif leading-snug">
+                  An Elevated<br />Experience
+                </h1>
+                <div className="d3 w-10 h-0.5 bg-[#c49a45] rounded-full" />
+                <p className="d4 text-gray-300 leading-relaxed max-w-md text-base">
+                  This is not just coffee — it&apos;s a composition of flavor, texture,
+                  and aroma. Designed to slow you down and draw you in, one sip at
+                  a time.
+                </p>
+                <div className="d5">
+                  <button onClick={() => router.push("/menu")} className="cta-btn">Explore Further →</button>
+                </div>
               </div>
             </div>
-          </div>
 
+          </div>
         </div>
       </section>
     </>

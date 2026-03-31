@@ -3,8 +3,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import logo from "../../public/logo.png";
+import { useRouter } from "next/navigation";
 
 export default function AdminNavbar() {
+  const router = useRouter();
+
   const links = [
     { label: "Orders", href: "/admin/orders" },
     { label: "Menu", href: "/admin/menu" },
@@ -25,7 +28,7 @@ export default function AdminNavbar() {
   "
     >
       {/* Logo */}
-      <div className="flex items-center gap-2 text-white font-serif text-xl tracking-wide">
+      <div className="flex items-center gap-2 text-white font-serif text-xl tracking-wide" onClick={()=> router.push("/")}>
         <Image src={logo} alt="logo" className="size-9" />
         <span>Caffiq</span>
       </div>

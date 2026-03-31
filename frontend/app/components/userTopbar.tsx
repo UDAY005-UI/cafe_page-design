@@ -3,8 +3,11 @@
 import Image from "next/image";
 import logo from "../../public/logo.png";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function UserTopbar() {
+  const router = useRouter();
+
   return (
     <div className="fixed top-6 z-50 w-full flex justify-center">
       <nav
@@ -18,9 +21,9 @@ export default function UserTopbar() {
           shadow-[0_10px_40px_rgba(0,0,0,0.4)]
         "
       >
-        <div className="flex items-center gap-2 text-white font-serif text-xl tracking-wide">
+        <div className="flex items-center gap-2 text-white font-serif text-xl tracking-wide" onClick={() => router.push("/")}>
           <Image src={logo} alt="logo" className="size-9" />
-          <Link href="/">Caffiq</Link>
+          <span>Caffiq</span>
         </div>
 
         <div className="flex items-center gap-6">

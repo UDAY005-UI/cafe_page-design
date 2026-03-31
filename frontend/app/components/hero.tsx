@@ -333,7 +333,7 @@ export default function Hero() {
           </div>
 
           {/* 7. CTA — below the cup */}
-          <div className={`pre-anim hero-btn flex flex-wrap items-center justify-center gap-4 mt-20`}>
+          <div className={` relative pre-anim hero-btn flex flex-wrap items-center z-90 justify-center gap-4 mt-20`}>
             <Link href={"/menu"} className="btn-shimmer px-6 py-3 rounded-full text-black font-semibold text-sm tracking-wide">
               Sip the Experience →
             </Link>
@@ -347,7 +347,7 @@ export default function Hero() {
         </div>
 
         {/* Bottom fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-linear-to-t from-black to-transparent z-20 pointer-events-none" />
+        <div className="lg:block hidden absolute bottom-0 left-0 right-0 h-24 bg-linear-to-t from-black to-transparent z-20 pointer-events-none" />
       </section>
     </>
   );
